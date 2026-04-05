@@ -42,6 +42,8 @@ const MAPPING = {
   'trash.fill': 'delete',
   'rectangle.portrait.and.arrow.right': 'logout',
   'pencil': 'edit',
+  'hand.thumbsup.fill': 'thumb-up',
+  'hand.thumbsdown.fill': 'thumb-down',
 } as IconMapping;
 
 /**

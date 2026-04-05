@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/app-context';
@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ProgressBar } from '@/components/progress-bar';
 import { CreditBadge } from '@/components/credit-badge';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { getFeed, recordInteraction, FeedItem } from '@/services/api-client';
 
 const MOCK_COMMENTS = [
   { id: '1', user: 'Alex M.', text: 'This project is amazing! Can\'t wait to see the final result.' },
@@ -34,9 +35,89 @@ export default function FeedScreen() {
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState(MOCK_COMMENTS);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
 
-  const feedItems = projects.flatMap((project) =>
-    project.videos.map((video) => ({ project, video })),
+  // Load feed from API when user is available
+  useEffect(() => {
+    if (!user) {
+      // Fall back to local project data when not authenticated
+      const items = projects.flatMap((project) =>
+        project.videos.map((video) => ({
+          video: { ...video, videoUrl: null },
+          project: {
+            id: project.id,
+            title: project.title,
+            creatorName: project.creatorName,
+            raisedCredits: project.raisedCredits,
+            goalCredits: project.goalCredits,
+            backerCount: project.backerCount,
+          },
+          interaction: { liked: false, disliked: false },
+        })),
+      );
+      setFeedItems(items);
+      return;
+    }
+    getFeed(20, 0)
+      .then(setFeedItems)
+      .catch(() => {
+        // Fallback to projects-based feed
+        const items = projects.flatMap((project) =>
+          project.videos.map((video) => ({
+            video: { ...video, videoUrl: null },
+            project: {
+              id: project.id,
+              title: project.title,
+              creatorName: project.creatorName,
+              raisedCredits: project.raisedCredits,
+              goalCredits: project.goalCredits,
+              backerCount: project.backerCount,
+            },
+            interaction: { liked: false, disliked: false },
+          })),
+        );
+        setFeedItems(items);
+      });
+  }, [user, projects]);
+
+  const handleLike = useCallback(
+    async (videoId: string, currentlyLiked: boolean) => {
+      await recordInteraction(videoId, 'like');
+      setFeedItems((prev) =>
+        prev.map((item) =>
+          item.video.id === videoId
+            ? {
+                ...item,
+                interaction: {
+                  liked: !currentlyLiked,
+                  disliked: false,
+                },
+              }
+            : item,
+        ),
+      );
+    },
+    [],
+  );
+
+  const handleDislike = useCallback(
+    async (videoId: string, currentlyDisliked: boolean) => {
+      await recordInteraction(videoId, 'dislike');
+      setFeedItems((prev) =>
+        prev.map((item) =>
+          item.video.id === videoId
+            ? {
+                ...item,
+                interaction: {
+                  liked: false,
+                  disliked: !currentlyDisliked,
+                },
+              }
+            : item,
+        ),
+      );
+    },
+    [],
   );
 
   const handleAddComment = useCallback(() => {
@@ -48,8 +129,8 @@ export default function FeedScreen() {
     setCommentText('');
   }, [commentText]);
 
-  const renderItem = ({ item }: { item: (typeof feedItems)[number] }) => {
-    const { project, video } = item;
+  const renderItem = ({ item }: { item: FeedItem }) => {
+    const { project, video, interaction } = item;
     const progress = project.goalCredits > 0 ? project.raisedCredits / project.goalCredits : 0;
 
     return (
@@ -96,6 +177,28 @@ export default function FeedScreen() {
 
         {/* Right side action bar */}
         <View style={styles.sideBar}>
+          <Pressable
+            style={styles.sideButton}
+            onPress={() => handleLike(video.id, interaction.liked)}>
+            <IconSymbol
+              name="hand.thumbsup.fill"
+              size={28}
+              color={interaction.liked ? '#22c55e' : '#fff'}
+            />
+            <ThemedText style={styles.sideLabel}>Like</ThemedText>
+          </Pressable>
+
+          <Pressable
+            style={styles.sideButton}
+            onPress={() => handleDislike(video.id, interaction.disliked)}>
+            <IconSymbol
+              name="hand.thumbsdown.fill"
+              size={28}
+              color={interaction.disliked ? '#ef4444' : '#fff'}
+            />
+            <ThemedText style={styles.sideLabel}>Dislike</ThemedText>
+          </Pressable>
+
           <Pressable
             style={styles.sideButton}
             onPress={() =>

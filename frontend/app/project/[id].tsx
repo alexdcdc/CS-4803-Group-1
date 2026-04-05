@@ -9,7 +9,7 @@ import { ProgressBar } from '@/components/progress-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Project } from '@/data/types';
-import * as api from '@/services/mock-api';
+import * as api from '@/services/api-client';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

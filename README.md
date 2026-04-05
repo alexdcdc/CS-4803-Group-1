@@ -1,50 +1,73 @@
-# Welcome to your Expo app 👋
+# Quickstarter
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A crowdfunding platform built with an Expo React Native frontend and a FastAPI backend, backed by Supabase.
 
-## Get started
+## Project Structure
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+quickstarter/
+  frontend/   — Expo SDK 54 React Native app (iOS, Android, Web)
+  backend/    — Python FastAPI server
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Prerequisites
 
-## Learn more
+- **Node.js** (v18+) and npm
+- **Python** 3.11+
+- A **Supabase** project (for database and auth)
 
-To learn more about developing your project with Expo, look at the following resources:
+## Environment Setup
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Backend
 
-## Join the community
+Create `backend/.env` with:
 
-Join our community of developers creating universal apps.
+```env
+SUPABASE_URL=<your-supabase-url>
+SUPABASE_ANON_KEY=<your-supabase-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-supabase-service-role-key>
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Frontend
+
+The Supabase URL, anon key, and API base URL are configured in `frontend/services/config.ts`. Update these values to point to your own Supabase project and backend URL.
+
+## Running the Backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+The API server starts at `http://localhost:8000`. Interactive docs are available at `http://localhost:8000/docs`.
+
+## Running the Frontend
+
+```bash
+cd frontend
+npm install
+npx expo start
+```
+
+From there you can open the app on:
+
+- **Android** — press `a` (requires Android emulator or device with Expo Go)
+- **iOS** — press `i` (requires iOS simulator on macOS or device with Expo Go)
+- **Web** — press `w`
+
+Or run directly for a specific platform:
+
+```bash
+npm run android
+npm run ios
+npm run web
+```
+
+## Linting & Type Checking
+
+```bash
+cd frontend
+npm run lint        # ESLint
+npx tsc --noEmit    # TypeScript type check
+```

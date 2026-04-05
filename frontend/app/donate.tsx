@@ -7,7 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Project, Reward } from '@/data/types';
-import * as api from '@/services/mock-api';
+import * as api from '@/services/api-client';
 
 const AMOUNTS = [10, 25, 50, 100];
 

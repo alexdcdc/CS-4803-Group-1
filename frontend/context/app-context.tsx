@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import * as api from '@/services/mock-api';
+import * as api from '@/services/api-client';
+import { supabase } from '@/services/api-client';
 import { Project, Reward, User, UserRole } from '@/data/types';
 
 interface AppState {
@@ -49,6 +50,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Listen for Supabase auth state changes
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') refresh();
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setProjects([]);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, [refresh]);
 
   const donateFn: AppActions['donate'] = useCallback(
