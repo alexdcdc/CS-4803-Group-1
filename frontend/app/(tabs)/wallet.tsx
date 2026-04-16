@@ -1,17 +1,80 @@
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Transaction } from '@/data/types';
+import { ConnectStatus, CreatorEarnings, Transaction } from '@/data/types';
 
 export default function WalletScreen() {
-  const { user, projects, convertCredits } = useApp();
+  const {
+    user,
+    projects,
+    convertCredits,
+    getConnectStatus,
+    getCreatorEarningsSummary,
+    startCreatorOnboarding,
+    refresh,
+  } = useApp();
   const router = useRouter();
   const ownedCampaigns = projects.filter((p) => p.isOwned);
-  const totalEarnings = ownedCampaigns.reduce((sum, p) => sum + p.raisedCredits, 0);
+  const [earnings, setEarnings] = useState<CreatorEarnings>({ earnings: 0, paidOut: 0, available: 0 });
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus>({
+    status: 'not_started',
+    requirementsDue: [],
+    hasAccount: false,
+  });
+  const [payoutStatus, setPayoutStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+
+  const loadPayoutState = async () => {
+    if (ownedCampaigns.length === 0) return;
+    const [earningsSummary, status] = await Promise.all([
+      getCreatorEarningsSummary(),
+      getConnectStatus(),
+    ]);
+    setEarnings(earningsSummary);
+    setConnectStatus(status);
+  };
+
+  useEffect(() => {
+    loadPayoutState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownedCampaigns.length]);
+
+  const handleOnboarding = async () => {
+    setPayoutStatus('loading');
+    setPayoutError(null);
+    try {
+      const returnUrl = Linking.createURL('/wallet');
+      const { url } = await startCreatorOnboarding();
+      await WebBrowser.openAuthSessionAsync(url, returnUrl);
+      await loadPayoutState();
+      setPayoutStatus('idle');
+    } catch (error) {
+      setPayoutError(error instanceof Error ? error.message : 'Payout setup failed.');
+      setPayoutStatus('error');
+    }
+  };
+
+  const handleCashout = async () => {
+    if (earnings.available < 100) return;
+    setPayoutStatus('loading');
+    setPayoutError(null);
+    try {
+      const { dollarAmount } = await convertCredits(earnings.available);
+      await Promise.all([refresh(), loadPayoutState()]);
+      setPayoutStatus('idle');
+      alert(`Cashout started for $${dollarAmount.toFixed(2)}.`);
+    } catch (error) {
+      setPayoutError(error instanceof Error ? error.message : 'Cashout failed.');
+      setPayoutStatus('error');
+    }
+  };
 
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const isPositive = item.amount > 0;
@@ -66,23 +129,38 @@ export default function WalletScreen() {
           <View style={styles.payoutHeader}>
             <ThemedText style={styles.payoutLabel}>Creator Earnings</ThemedText>
             <ThemedText style={styles.payoutAmount}>
-              {totalEarnings.toLocaleString()} credits
+              {earnings.available.toLocaleString()} credits
             </ThemedText>
           </View>
           <ThemedText style={styles.payoutRate}>
             Conversion rate: 100 credits = $1.00
           </ThemedText>
+          {earnings.paidOut > 0 ? (
+            <ThemedText style={styles.payoutRate}>
+              Paid out: {earnings.paidOut.toLocaleString()} credits
+            </ThemedText>
+          ) : null}
           <Pressable
-            style={styles.payoutButton}
-            onPress={async () => {
-              if (totalEarnings > 0) {
-                const { dollarAmount } = await convertCredits(totalEarnings);
-                alert(`Converted to $${dollarAmount.toFixed(2)}!`);
-              }
-            }}>
+            style={[styles.payoutButton, payoutStatus === 'loading' && { opacity: 0.6 }]}
+            onPress={connectStatus.status === 'active' ? handleCashout : handleOnboarding}
+            disabled={payoutStatus === 'loading' || (connectStatus.status === 'active' && earnings.available < 100)}>
             <IconSymbol name="creditcard.fill" size={18} color="#fff" />
-            <ThemedText style={styles.payoutButtonText}>Convert to Cash</ThemedText>
+            <ThemedText style={styles.payoutButtonText}>
+              {payoutStatus === 'loading'
+                ? 'Working...'
+                : connectStatus.status === 'active'
+                  ? 'Cash Out'
+                  : 'Set Up Payouts'}
+            </ThemedText>
           </Pressable>
+          {connectStatus.status !== 'active' ? (
+            <ThemedText style={styles.payoutRate}>
+              Stripe payouts are {connectStatus.status.replace('_', ' ')}.
+            </ThemedText>
+          ) : null}
+          {payoutStatus === 'error' ? (
+            <ThemedText style={styles.error}>{payoutError ?? 'Payout setup failed. Check Stripe and try again.'}</ThemedText>
+          ) : null}
         </View>
       )}
 
@@ -155,6 +233,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   payoutButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  error: { color: '#ef4444', fontSize: 12 },
   sectionTitle: { paddingHorizontal: 16, marginBottom: 8 },
   list: { paddingBottom: 40, paddingHorizontal: 16 },
   txRow: {

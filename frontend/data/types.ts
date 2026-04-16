@@ -47,3 +47,15 @@ export interface User {
   role: UserRole;
   hasCompletedOnboarding: boolean;
 }
+
+export interface ConnectStatus {
+  status: 'not_started' | 'active' | 'transfers_active' | 'pending' | 'restricted' | 'unsupported';
+  requirementsDue: string[];
+  hasAccount: boolean;
+}
+
+export interface CreatorEarnings {
+  earnings: number;
+  paidOut: number;
+  available: number;
+}

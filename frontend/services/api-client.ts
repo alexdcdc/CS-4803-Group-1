@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-import { Project, ProjectVideo, Reward, Transaction, User, UserRole } from '@/data/types';
+import { ConnectStatus, CreatorEarnings, Project, ProjectVideo, Reward, User, UserRole } from '@/data/types';
 import { API_BASE_URL, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/services/config';
 
 // ─── Supabase Client (auth only) ──────────────────────────────
@@ -184,10 +184,13 @@ export async function donate(
   });
 }
 
-export async function rechargeCredits(amount: number): Promise<void> {
-  await apiFetch('/wallet/recharge', {
+export async function startCreditCheckout(
+  credits: number,
+  returnUrl: string,
+): Promise<{ url: string; sessionId: string }> {
+  return apiFetch('/wallet/checkout-session', {
     method: 'POST',
-    body: JSON.stringify({ amount }),
+    body: JSON.stringify({ credits, returnUrl }),
   });
 }
 
@@ -201,8 +204,22 @@ export async function convertCreditsToMoney(
 }
 
 export async function getCreatorEarnings(): Promise<number> {
-  const resp = await apiFetch<{ earnings: number }>('/wallet/earnings');
-  return resp.earnings;
+  const resp = await apiFetch<CreatorEarnings>('/wallet/earnings');
+  return resp.available;
+}
+
+export async function getCreatorEarningsSummary(): Promise<CreatorEarnings> {
+  return apiFetch<CreatorEarnings>('/wallet/earnings');
+}
+
+export async function getConnectStatus(): Promise<ConnectStatus> {
+  return apiFetch<ConnectStatus>('/wallet/connect/status');
+}
+
+export async function startCreatorOnboarding(): Promise<{ url: string }> {
+  return apiFetch<{ url: string }>('/wallet/connect/onboarding-link', {
+    method: 'POST',
+  });
 }
 
 // ─── Feed ──────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 
 import * as api from '@/services/api-client';
 import { supabase } from '@/services/api-client';
-import { Project, Reward, User, UserRole } from '@/data/types';
+import { ConnectStatus, CreatorEarnings, Project, Reward, User, UserRole } from '@/data/types';
 
 interface AppState {
   user: User | null;
@@ -13,12 +13,15 @@ interface AppState {
 interface AppActions {
   refresh: () => Promise<void>;
   donate: (projectId: string, amount: number) => Promise<{ success: boolean; rewardsUnlocked: Reward[] }>;
-  rechargeCredits: (amount: number) => Promise<void>;
+  startCreditCheckout: (credits: number, returnUrl: string) => Promise<{ url: string; sessionId: string }>;
   createCampaign: (data: { title: string; description: string; goalCredits: number }) => Promise<Project>;
   uploadContent: (projectId: string, title: string) => Promise<void>;
   addReward: (projectId: string, reward: Omit<Reward, 'id'>) => Promise<void>;
   searchProjects: (query: string) => Promise<Project[]>;
   convertCredits: (amount: number) => Promise<{ dollarAmount: number }>;
+  getCreatorEarningsSummary: () => Promise<CreatorEarnings>;
+  getConnectStatus: () => Promise<ConnectStatus>;
+  startCreatorOnboarding: () => Promise<{ url: string }>;
   setUserRole: (role: UserRole) => Promise<void>;
   toggleUserRole: () => Promise<void>;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -75,13 +78,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [refresh],
   );
 
-  const rechargeFn: AppActions['rechargeCredits'] = useCallback(
-    async (amount) => {
-      await api.rechargeCredits(amount);
-      await refresh();
-    },
-    [refresh],
-  );
+  const startCreditCheckoutFn: AppActions['startCreditCheckout'] = useCallback(async (credits, returnUrl) => {
+    return api.startCreditCheckout(credits, returnUrl);
+  }, []);
 
   const createCampaignFn: AppActions['createCampaign'] = useCallback(
     async (data) => {
@@ -183,12 +182,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loading,
         refresh,
         donate: donateFn,
-        rechargeCredits: rechargeFn,
+        startCreditCheckout: startCreditCheckoutFn,
         createCampaign: createCampaignFn,
         uploadContent: uploadContentFn,
         addReward: addRewardFn,
         searchProjects: searchFn,
         convertCredits: convertFn,
+        getCreatorEarningsSummary: api.getCreatorEarningsSummary,
+        getConnectStatus: api.getConnectStatus,
+        startCreatorOnboarding: api.startCreatorOnboarding,
         setUserRole: setUserRoleFn,
         toggleUserRole: toggleUserRoleFn,
         login: loginFn,

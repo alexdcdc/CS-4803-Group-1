@@ -26,7 +26,22 @@ Create `backend/.env` with:
 SUPABASE_URL=<your-supabase-url>
 SUPABASE_ANON_KEY=<your-supabase-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<your-supabase-service-role-key>
+STRIPE_SECRET_KEY=<your-stripe-secret-key>
+STRIPE_WEBHOOK_SECRET=<your-stripe-webhook-signing-secret>
+STRIPE_PUBLIC_KEY=<your-stripe-publishable-key>
+STRIPE_API_VERSION=2026-03-25.dahlia
+STRIPE_CONNECT_COUNTRY=US
+APP_RETURN_URL=quickstarter://wallet
+WEB_RETURN_URL=http://localhost:8081
 ```
+
+For local Stripe webhooks, install the Stripe CLI and run:
+
+```bash
+stripe listen --forward-to localhost:8000/api/v1/stripe/webhook
+```
+
+Copy the printed `whsec_...` value into `STRIPE_WEBHOOK_SECRET`.
 
 ### Frontend
 

@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
@@ -15,15 +17,22 @@ const PACKAGES = [
 ];
 
 export default function RechargeScreen() {
-  const { user, rechargeCredits } = useApp();
+  const { user, refresh, startCreditCheckout } = useApp();
   const router = useRouter();
   const [selected, setSelected] = useState(500);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'pending' | 'success' | 'error'>('idle');
 
   const handleRecharge = async () => {
-    setStatus('loading');
-    await rechargeCredits(selected);
-    setStatus('success');
+    try {
+      setStatus('loading');
+      const returnUrl = Linking.createURL('/recharge');
+      const { url } = await startCreditCheckout(selected, returnUrl);
+      await WebBrowser.openAuthSessionAsync(url, returnUrl);
+      await refresh();
+      setStatus('pending');
+    } catch {
+      setStatus('error');
+    }
   };
 
   if (status === 'success') {
@@ -76,10 +85,20 @@ export default function RechargeScreen() {
         disabled={status === 'loading'}>
         <ThemedText style={styles.buyText}>
           {status === 'loading'
-            ? 'Processing...'
+            ? 'Opening Stripe Checkout...'
             : `Buy ${selected} Credits for ${PACKAGES.find((p) => p.credits === selected)?.price}`}
         </ThemedText>
       </Pressable>
+      {status === 'pending' ? (
+        <ThemedText style={styles.pending}>
+          Payment received by Stripe. Credits appear after the webhook confirms the charge.
+        </ThemedText>
+      ) : null}
+      {status === 'error' ? (
+        <ThemedText style={styles.error}>
+          Checkout could not be started. Check your Stripe configuration and try again.
+        </ThemedText>
+      ) : null}
     </ThemedView>
   );
 }
@@ -127,6 +146,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buyText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  pending: { opacity: 0.6, marginTop: 16, textAlign: 'center' },
+  error: { color: '#ef4444', marginTop: 16, textAlign: 'center' },
   doneButton: {
     backgroundColor: '#0a7ea4',
     paddingHorizontal: 32,

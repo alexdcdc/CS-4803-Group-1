@@ -4,3 +4,4 @@ supabase>=2,<3
 pydantic>=2,<3
 pydantic-settings>=2,<3
 httpx>=0.28,<0.29
+stripe>=12,<13
