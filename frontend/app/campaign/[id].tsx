@@ -1,10 +1,11 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { MockVideoPlayer } from '@/components/mock-video-player';
 import { ProgressBar } from '@/components/progress-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -91,14 +92,36 @@ export default function CampaignDetailScreen() {
         {project.videos.length === 0 ? (
           <ThemedText style={styles.empty}>No content yet. Upload your first video!</ThemedText>
         ) : (
-          project.videos.map((video) => (
-            <View key={video.id} style={styles.contentRow}>
-              <View style={[styles.contentThumb, { backgroundColor: video.placeholderColor }]}>
-                <IconSymbol name="play.fill" size={16} color="rgba(255,255,255,0.7)" />
+          <>
+            {/* Inline player for the most recent video */}
+            <MockVideoPlayer
+              color={project.videos[0].placeholderColor}
+              videoUrl={project.videos[0].videoUrl}
+              thumbnailUrl={project.videos[0].thumbnailUrl}
+              status={project.videos[0].status}
+              height={200}
+            />
+            {project.videos.map((video) => (
+              <View key={video.id} style={styles.contentRow}>
+                {video.thumbnailUrl ? (
+                  <Image
+                    source={{ uri: video.thumbnailUrl }}
+                    style={styles.contentThumb}
+                  />
+                ) : (
+                  <View style={[styles.contentThumb, { backgroundColor: video.placeholderColor }]}>
+                    <IconSymbol name="play.fill" size={16} color="rgba(255,255,255,0.7)" />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <ThemedText style={styles.contentTitle}>{video.title}</ThemedText>
+                  {video.status !== 'ready' && (
+                    <ThemedText style={styles.statusText}>{video.status}</ThemedText>
+                  )}
+                </View>
               </View>
-              <ThemedText style={styles.contentTitle}>{video.title}</ThemedText>
-            </View>
-          ))
+            ))}
+          </>
         )}
 
         {/* Rewards list */}
@@ -174,7 +197,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  contentTitle: { fontSize: 14, flex: 1 },
+  contentTitle: { fontSize: 14 },
+  statusText: { fontSize: 12, opacity: 0.5, marginTop: 2, textTransform: 'capitalize' },
   rewardCard: {
     borderWidth: 1,
     borderRadius: 10,

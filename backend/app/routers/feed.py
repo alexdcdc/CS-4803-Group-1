@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.dependencies import CurrentUser
 from app.models.feed import FeedInteraction, FeedItem, FeedProjectSummary, RecordInteractionRequest
-from app.models.project import ProjectVideoOut
+from app.routers.projects import _video_to_out
 from app.services.supabase_client import get_supabase_client
 
 router = APIRouter()
@@ -61,12 +61,7 @@ async def get_feed(user: CurrentUser, limit: int = 10, offset: int = 0):
         inter = interaction_map.get(v["id"], {"liked": False, "disliked": False})
 
         items.append(FeedItem(
-            video=ProjectVideoOut(
-                id=v["id"],
-                title=v["title"],
-                placeholderColor=v["placeholder_color"],
-                videoUrl=v.get("video_url"),
-            ),
+            video=_video_to_out(v),
             project=FeedProjectSummary(
                 id=proj["id"],
                 title=proj["title"],

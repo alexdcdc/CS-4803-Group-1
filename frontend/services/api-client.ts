@@ -155,11 +155,49 @@ export async function createCampaign(data: {
   });
 }
 
-export async function uploadContent(projectId: string, videoTitle: string): Promise<void> {
-  await apiFetch(`/projects/${projectId}/videos`, {
+export interface CreateVideoUploadResponse {
+  video: ProjectVideo;
+  uploadUrl: string;
+  uploadId: string;
+}
+
+export async function createVideoUpload(
+  projectId: string,
+  videoTitle: string,
+): Promise<CreateVideoUploadResponse> {
+  return apiFetch<CreateVideoUploadResponse>(`/projects/${projectId}/videos`, {
     method: 'POST',
     body: JSON.stringify({ title: videoTitle }),
   });
+}
+
+/**
+ * PUT the picked file directly to the Mux upload URL. Works with a local file
+ * URI from expo-image-picker on native, or a blob URL on web.
+ */
+export async function putVideoFile(
+  uploadUrl: string,
+  fileUri: string,
+  contentType?: string,
+): Promise<void> {
+  const fileRes = await fetch(fileUri);
+  const blob = await fileRes.blob();
+  const putRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: contentType ? { 'Content-Type': contentType } : undefined,
+    body: blob,
+  });
+  if (!putRes.ok) {
+    const body = await putRes.text().catch(() => '');
+    throw new Error(`Mux upload failed (${putRes.status}): ${body}`);
+  }
+}
+
+export async function getProjectVideo(
+  projectId: string,
+  videoId: string,
+): Promise<ProjectVideo> {
+  return apiFetch<ProjectVideo>(`/projects/${projectId}/videos/${videoId}`);
 }
 
 export async function addReward(

@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(.venv/Scripts/python -c \"from app.main import app; from app.services import mux_service; from app.routers import projects, feed, mux_webhooks; print\\('ok'\\)\")",
+      "mcp__mux__whoami_system_utilities",
+      "mcp__mux__create_video_uploads",
+      "Bash(curl -fsSL -o /tmp/mux-test.mp4 https://storage.googleapis.com/muxdemofiles/mux-video-intro.mp4)",
+      "Read(//tmp/**)",
+      "Bash(curl *)",
+      "mcp__mux__retrieve_video_uploads",
+      "mcp__mux__retrieve_video_assets",
+      "Bash(.venv/Scripts/python -c ' *)",
+      "mcp__supabase__get_project_url",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration",
+      "Bash(ps -W)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist)",
+      "mcp__mux__cancel_video_uploads",
+      "Bash(.venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000)",
+      "Bash(echo \"started pid=$!\")",
+      "Bash(.venv/Scripts/python -m json.tool)",
+      "Bash(.venv/Scripts/python scripts/dev_e2e_mux.py)",
+      "Bash(cygpath -w /tmp/mux-test.mp4)",
+      "Bash(echo \"windows path: $\\(cygpath -w /tmp/mux-test.mp4\\)\")",
+      "Bash(kill 969)"
+    ]
+  }
+}

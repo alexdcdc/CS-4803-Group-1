@@ -14,6 +14,17 @@ class ProjectVideoOut(BaseModel):
     title: str
     placeholderColor: str
     videoUrl: str | None = None
+    thumbnailUrl: str | None = None
+    status: str = "pending"
+    assetId: str | None = None
+    playbackId: str | None = None
+    durationSeconds: float | None = None
+
+
+class CreateVideoUploadResponse(BaseModel):
+    video: ProjectVideoOut
+    uploadUrl: str
+    uploadId: str
 
 
 class ProjectOut(BaseModel):

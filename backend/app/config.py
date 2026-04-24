@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     stripe_connect_country: str = "US"
     app_return_url: str = "quickstarter://wallet"
     web_return_url: str = "http://localhost:8081"
+    mux_token_id: str = ""
+    mux_token_secret: str = ""
+    mux_webhook_secret: str = ""
+    mux_playback_policy: str = "public"
+    mux_cors_origin: str = "*"
 
     model_config = {"env_file": ".env"}
 

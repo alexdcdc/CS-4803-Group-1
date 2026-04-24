@@ -15,7 +15,6 @@ interface AppActions {
   donate: (projectId: string, amount: number) => Promise<{ success: boolean; rewardsUnlocked: Reward[] }>;
   startCreditCheckout: (credits: number, returnUrl: string) => Promise<{ url: string; sessionId: string }>;
   createCampaign: (data: { title: string; description: string; goalCredits: number }) => Promise<Project>;
-  uploadContent: (projectId: string, title: string) => Promise<void>;
   addReward: (projectId: string, reward: Omit<Reward, 'id'>) => Promise<void>;
   searchProjects: (query: string) => Promise<Project[]>;
   convertCredits: (amount: number) => Promise<{ dollarAmount: number }>;
@@ -87,14 +86,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const campaign = await api.createCampaign(data);
       await refresh();
       return campaign;
-    },
-    [refresh],
-  );
-
-  const uploadContentFn: AppActions['uploadContent'] = useCallback(
-    async (projectId, title) => {
-      await api.uploadContent(projectId, title);
-      await refresh();
     },
     [refresh],
   );
@@ -184,7 +175,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         donate: donateFn,
         startCreditCheckout: startCreditCheckoutFn,
         createCampaign: createCampaignFn,
-        uploadContent: uploadContentFn,
         addReward: addRewardFn,
         searchProjects: searchFn,
         convertCredits: convertFn,

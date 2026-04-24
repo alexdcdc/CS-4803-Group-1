@@ -7,11 +7,25 @@ export interface Reward {
   fileName?: string;
 }
 
+export type VideoStatus =
+  | 'pending'
+  | 'asset_created'
+  | 'preparing'
+  | 'ready'
+  | 'errored'
+  | 'cancelled';
+
 export interface ProjectVideo {
   id: string;
   title: string;
-  /** Placeholder color for the wireframe video area */
+  /** Placeholder color used while the Mux asset isn't ready yet */
   placeholderColor: string;
+  videoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  status: VideoStatus;
+  assetId?: string | null;
+  playbackId?: string | null;
+  durationSeconds?: number | null;
 }
 
 export interface Project {

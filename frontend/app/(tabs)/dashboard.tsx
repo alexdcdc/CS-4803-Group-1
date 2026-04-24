@@ -1,4 +1,4 @@
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { useApp } from '@/context/app-context';
@@ -21,11 +21,15 @@ function CreatorDashboard() {
 
   const renderCampaign = ({ item }: { item: Project }) => {
     const progress = item.goalCredits > 0 ? item.raisedCredits / item.goalCredits : 0;
+    const firstVideo = item.videos[0];
     return (
       <Pressable
         style={styles.campaignCard}
         onPress={() => router.push({ pathname: '/campaign/[id]', params: { id: item.id } })}>
-        <View style={[styles.campaignThumb, { backgroundColor: item.videos[0]?.placeholderColor ?? '#333' }]}>
+        <View style={[styles.campaignThumb, { backgroundColor: firstVideo?.placeholderColor ?? '#333' }]}>
+          {firstVideo?.thumbnailUrl && (
+            <Image source={{ uri: firstVideo.thumbnailUrl }} style={StyleSheet.absoluteFillObject} />
+          )}
           <ThemedText style={styles.videoCount}>{item.videos.length} videos</ThemedText>
         </View>
         <View style={styles.campaignInfo}>
@@ -102,6 +106,9 @@ function BackerDashboard() {
         style={styles.campaignCard}
         onPress={() => router.push({ pathname: '/project/[id]', params: { id: item.id } })}>
         <View style={[styles.campaignThumb, { backgroundColor: item.videos[0]?.placeholderColor ?? '#333' }]}>
+          {item.videos[0]?.thumbnailUrl && (
+            <Image source={{ uri: item.videos[0].thumbnailUrl }} style={StyleSheet.absoluteFillObject} />
+          )}
           <ThemedText style={styles.videoCount}>{item.videos.length} videos</ThemedText>
         </View>
         <View style={styles.campaignInfo}>
@@ -258,6 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   videoCount: { color: '#fff', fontSize: 11, fontWeight: '600' },
   campaignInfo: { flex: 1, justifyContent: 'center', gap: 4 },

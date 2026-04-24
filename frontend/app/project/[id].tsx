@@ -38,6 +38,9 @@ export default function ProjectDetailScreen() {
         <MockVideoPlayer
           color={project.videos[0]?.placeholderColor ?? '#333'}
           height={240}
+          videoUrl={project.videos[0]?.videoUrl}
+          thumbnailUrl={project.videos[0]?.thumbnailUrl}
+          status={project.videos[0]?.status}
         />
 
         <View style={styles.content}>
