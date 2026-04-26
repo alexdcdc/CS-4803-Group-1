@@ -6,6 +6,7 @@ import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Skeleton, SkeletonText } from '@/components/skeleton';
 import { Project, Reward } from '@/data/types';
 import * as api from '@/services/api-client';
 
@@ -13,32 +14,54 @@ const AMOUNTS = [10, 25, 50, 100];
 
 export default function DonateScreen() {
   const { projectId } = useLocalSearchParams<{ projectId: string }>();
-  const { user, donate } = useApp();
+  const { user, projects, donate } = useApp();
   const router = useRouter();
-  const [project, setProject] = useState<Project | null>(null);
-  const [selected, setSelected] = useState(25);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'insufficient'>('idle');
-  const [unlockedRewards, setUnlockedRewards] = useState<Reward[]>([]);
 
+  const fromContext = projectId ? projects.find((p) => p.id === projectId) : undefined;
+  const [project, setProject] = useState<Project | null>(fromContext ?? null);
+  const [selected, setSelected] = useState(25);
+  const [view, setView] = useState<'pick' | 'success'>('pick');
+  const [predictedUnlocks, setPredictedUnlocks] = useState<Reward[]>([]);
+
+  // Re-sync from context (e.g. after donations reconcile reward list).
   useEffect(() => {
-    if (projectId) {
-      api.getProject(projectId).then((p) => p && setProject(p));
-    }
-  }, [projectId]);
+    if (fromContext) setProject(fromContext);
+  }, [fromContext]);
+
+  // Background fetch in case the project isn't in context yet.
+  useEffect(() => {
+    if (!projectId || fromContext) return;
+    let cancelled = false;
+    api.getProject(projectId).then((p) => {
+      if (!cancelled && p) setProject(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, fromContext]);
+
+  const insufficient = (user?.creditBalance ?? 0) < selected;
 
   const handleDonate = async () => {
-    if (!projectId) return;
-    setStatus('loading');
-    const result = await donate(projectId, selected);
-    if (result.success) {
-      setUnlockedRewards(result.rewardsUnlocked);
-      setStatus('success');
-    } else {
-      setStatus('insufficient');
-    }
+    if (!projectId || !project || insufficient) return;
+
+    // Predict the rewards the user will unlock so we can show them on the
+    // success screen immediately. The server is authoritative; on response
+    // we replace this with the real list.
+    const predicted = project.rewards.filter((r) => r.minDonation <= selected);
+    setPredictedUnlocks(predicted);
+    setView('success');
+
+    // Fire and forget: context applies optimistic balance/raisedCredits and
+    // reverts on failure (with toast).
+    donate(projectId, selected).then((result) => {
+      if (result.success && result.rewardsUnlocked.length > 0) {
+        setPredictedUnlocks(result.rewardsUnlocked);
+      }
+    });
   };
 
-  if (status === 'success') {
+  if (view === 'success') {
     return (
       <ThemedView style={styles.container}>
         <IconSymbol name="checkmark.circle.fill" size={64} color="#22c55e" />
@@ -49,12 +72,12 @@ export default function DonateScreen() {
           You donated {selected} credits to {project?.title ?? 'this project'}
         </ThemedText>
 
-        {unlockedRewards.length > 0 && (
+        {predictedUnlocks.length > 0 && (
           <View style={styles.rewardsSection}>
             <ThemedText type="subtitle" style={styles.rewardsTitle}>
               Rewards Unlocked!
             </ThemedText>
-            {unlockedRewards.map((r) => (
+            {predictedUnlocks.map((r) => (
               <View key={r.id} style={styles.rewardItem}>
                 <IconSymbol name="gift.fill" size={18} color="#f59e0b" />
                 <View style={{ flex: 1 }}>
@@ -64,7 +87,9 @@ export default function DonateScreen() {
                     <ThemedText style={styles.rewardFile}>{r.fileName}</ThemedText>
                   )}
                 </View>
-                <Pressable style={styles.downloadBtn} onPress={() => alert(`Downloading ${r.fileName ?? r.title}...`)}>
+                <Pressable
+                  style={styles.downloadBtn}
+                  onPress={() => alert(`Downloading ${r.fileName ?? r.title}...`)}>
                   <IconSymbol name="arrow.down.circle.fill" size={22} color="#0a7ea4" />
                 </Pressable>
               </View>
@@ -85,8 +110,10 @@ export default function DonateScreen() {
       <ThemedText type="title" style={{ marginTop: 12 }}>
         Back this project
       </ThemedText>
-      {project && (
+      {project ? (
         <ThemedText style={styles.projectName}>{project.title}</ThemedText>
+      ) : (
+        <SkeletonText width={160} style={{ marginTop: 6 }} />
       )}
 
       <View style={styles.balanceRow}>
@@ -114,33 +141,37 @@ export default function DonateScreen() {
         ))}
       </View>
 
-      {/* Available rewards preview */}
-      {project && project.rewards.filter((r) => r.minDonation <= selected).length > 0 && (
-        <View style={styles.rewardPreview}>
-          <ThemedText style={styles.rewardPreviewTitle}>{"You'll unlock:"}</ThemedText>
-          {project.rewards
-            .filter((r) => r.minDonation <= selected)
-            .map((r) => (
-              <ThemedText key={r.id} style={styles.rewardPreviewItem}>
-                • {r.title}
-              </ThemedText>
-            ))}
+      {project ? (
+        project.rewards.filter((r) => r.minDonation <= selected).length > 0 && (
+          <View style={styles.rewardPreview}>
+            <ThemedText style={styles.rewardPreviewTitle}>{"You'll unlock:"}</ThemedText>
+            {project.rewards
+              .filter((r) => r.minDonation <= selected)
+              .map((r) => (
+                <ThemedText key={r.id} style={styles.rewardPreviewItem}>
+                  • {r.title}
+                </ThemedText>
+              ))}
+          </View>
+        )
+      ) : (
+        <View style={[styles.rewardPreview, { opacity: 0.4 }]}>
+          <SkeletonText width="40%" />
+          <Skeleton height={10} width="80%" />
         </View>
       )}
 
-      {status === 'insufficient' && (
+      {insufficient && (
         <ThemedText style={styles.error}>
           Insufficient credits. Please recharge first.
         </ThemedText>
       )}
 
       <Pressable
-        style={[styles.confirmButton, status === 'loading' && { opacity: 0.6 }]}
+        style={[styles.confirmButton, (insufficient || !project) && { opacity: 0.5 }]}
         onPress={handleDonate}
-        disabled={status === 'loading'}>
-        <ThemedText style={styles.confirmText}>
-          {status === 'loading' ? 'Processing...' : `Donate ${selected} Credits`}
-        </ThemedText>
+        disabled={insufficient || !project}>
+        <ThemedText style={styles.confirmText}>{`Donate ${selected} Credits`}</ThemedText>
       </Pressable>
     </ThemedView>
   );

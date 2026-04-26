@@ -1,13 +1,15 @@
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { PendingIndicator } from '@/components/pending-indicator';
+import { EarningsSkeleton, SkeletonText, TransactionRowSkeleton } from '@/components/skeleton';
 import { ConnectStatus, CreatorEarnings, Transaction } from '@/data/types';
 
 export default function WalletScreen() {
@@ -19,19 +21,16 @@ export default function WalletScreen() {
     getCreatorEarningsSummary,
     startCreatorOnboarding,
     refresh,
+    pending,
   } = useApp();
   const router = useRouter();
   const ownedCampaigns = projects.filter((p) => p.isOwned);
-  const [earnings, setEarnings] = useState<CreatorEarnings>({ earnings: 0, paidOut: 0, available: 0 });
-  const [connectStatus, setConnectStatus] = useState<ConnectStatus>({
-    status: 'not_started',
-    requirementsDue: [],
-    hasAccount: false,
-  });
+  const [earnings, setEarnings] = useState<CreatorEarnings | null>(null);
+  const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
   const [payoutStatus, setPayoutStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [payoutError, setPayoutError] = useState<string | null>(null);
 
-  const loadPayoutState = async () => {
+  const loadPayoutState = useCallback(async () => {
     if (ownedCampaigns.length === 0) return;
     const [earningsSummary, status] = await Promise.all([
       getCreatorEarningsSummary(),
@@ -39,12 +38,11 @@ export default function WalletScreen() {
     ]);
     setEarnings(earningsSummary);
     setConnectStatus(status);
-  };
+  }, [ownedCampaigns.length, getCreatorEarningsSummary, getConnectStatus]);
 
   useEffect(() => {
     loadPayoutState();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownedCampaigns.length]);
+  }, [loadPayoutState]);
 
   const handleOnboarding = async () => {
     setPayoutStatus('loading');
@@ -62,7 +60,7 @@ export default function WalletScreen() {
   };
 
   const handleCashout = async () => {
-    if (earnings.available < 100) return;
+    if (!earnings || earnings.available < 100) return;
     setPayoutStatus('loading');
     setPayoutError(null);
     try {
@@ -106,15 +104,26 @@ export default function WalletScreen() {
         Wallet
       </ThemedText>
 
-      {/* Balance card */}
       <View style={styles.balanceCard}>
         <ThemedText style={styles.balanceLabel}>Credit Balance</ThemedText>
         <View style={styles.balanceRow}>
           <IconSymbol name="dollarsign.circle.fill" size={32} color="#f59e0b" />
-          <ThemedText style={styles.balanceAmount}>
-            {user?.creditBalance.toLocaleString() ?? '0'}
-          </ThemedText>
+          {user ? (
+            <ThemedText style={styles.balanceAmount}>
+              {user.creditBalance.toLocaleString()}
+            </ThemedText>
+          ) : (
+            <SkeletonText size="title" width={120} />
+          )}
+          {pending.checkout ? (
+            <PendingIndicator size={16} style={{ marginLeft: 8 }} />
+          ) : null}
         </View>
+        {pending.checkout ? (
+          <ThemedText style={styles.checkoutHint}>
+            Waiting for Stripe — {pending.checkout.credits.toLocaleString()} credits will appear shortly.
+          </ThemedText>
+        ) : null}
         <Pressable
           style={styles.rechargeButton}
           onPress={() => router.push('/recharge')}>
@@ -123,61 +132,73 @@ export default function WalletScreen() {
         </Pressable>
       </View>
 
-      {/* Creator payout section */}
       {ownedCampaigns.length > 0 && (
-        <View style={styles.payoutCard}>
-          <View style={styles.payoutHeader}>
-            <ThemedText style={styles.payoutLabel}>Creator Earnings</ThemedText>
-            <ThemedText style={styles.payoutAmount}>
-              {earnings.available.toLocaleString()} credits
+        earnings && connectStatus ? (
+          <View style={styles.payoutCard}>
+            <View style={styles.payoutHeader}>
+              <ThemedText style={styles.payoutLabel}>Creator Earnings</ThemedText>
+              <ThemedText style={styles.payoutAmount}>
+                {earnings.available.toLocaleString()} credits
+              </ThemedText>
+            </View>
+            <ThemedText style={styles.payoutRate}>
+              Conversion rate: 100 credits = $1.00
             </ThemedText>
+            {earnings.paidOut > 0 ? (
+              <ThemedText style={styles.payoutRate}>
+                Paid out: {earnings.paidOut.toLocaleString()} credits
+              </ThemedText>
+            ) : null}
+            <Pressable
+              style={[styles.payoutButton, payoutStatus === 'loading' && { opacity: 0.6 }]}
+              onPress={connectStatus.status === 'active' ? handleCashout : handleOnboarding}
+              disabled={payoutStatus === 'loading' || (connectStatus.status === 'active' && earnings.available < 100)}>
+              <IconSymbol name="creditcard.fill" size={18} color="#fff" />
+              <ThemedText style={styles.payoutButtonText}>
+                {payoutStatus === 'loading'
+                  ? 'Working...'
+                  : connectStatus.status === 'active'
+                    ? 'Cash Out'
+                    : 'Set Up Payouts'}
+              </ThemedText>
+            </Pressable>
+            {connectStatus.status !== 'active' ? (
+              <ThemedText style={styles.payoutRate}>
+                Stripe payouts are {connectStatus.status.replace('_', ' ')}.
+              </ThemedText>
+            ) : null}
+            {payoutStatus === 'error' ? (
+              <ThemedText style={styles.error}>{payoutError ?? 'Payout setup failed. Check Stripe and try again.'}</ThemedText>
+            ) : null}
           </View>
-          <ThemedText style={styles.payoutRate}>
-            Conversion rate: 100 credits = $1.00
-          </ThemedText>
-          {earnings.paidOut > 0 ? (
-            <ThemedText style={styles.payoutRate}>
-              Paid out: {earnings.paidOut.toLocaleString()} credits
-            </ThemedText>
-          ) : null}
-          <Pressable
-            style={[styles.payoutButton, payoutStatus === 'loading' && { opacity: 0.6 }]}
-            onPress={connectStatus.status === 'active' ? handleCashout : handleOnboarding}
-            disabled={payoutStatus === 'loading' || (connectStatus.status === 'active' && earnings.available < 100)}>
-            <IconSymbol name="creditcard.fill" size={18} color="#fff" />
-            <ThemedText style={styles.payoutButtonText}>
-              {payoutStatus === 'loading'
-                ? 'Working...'
-                : connectStatus.status === 'active'
-                  ? 'Cash Out'
-                  : 'Set Up Payouts'}
-            </ThemedText>
-          </Pressable>
-          {connectStatus.status !== 'active' ? (
-            <ThemedText style={styles.payoutRate}>
-              Stripe payouts are {connectStatus.status.replace('_', ' ')}.
-            </ThemedText>
-          ) : null}
-          {payoutStatus === 'error' ? (
-            <ThemedText style={styles.error}>{payoutError ?? 'Payout setup failed. Check Stripe and try again.'}</ThemedText>
-          ) : null}
-        </View>
+        ) : (
+          <View style={{ marginHorizontal: 16, marginBottom: 20 }}>
+            <EarningsSkeleton />
+          </View>
+        )
       )}
 
-      {/* Transaction history */}
       <ThemedText type="subtitle" style={styles.sectionTitle}>
         Transaction History
       </ThemedText>
 
-      <FlatList
-        data={user?.transactions ?? []}
-        keyExtractor={(item) => item.id}
-        renderItem={renderTransaction}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <ThemedText style={styles.empty}>No transactions yet.</ThemedText>
-        }
-      />
+      {user === null ? (
+        <View style={styles.list}>
+          <TransactionRowSkeleton />
+          <TransactionRowSkeleton />
+          <TransactionRowSkeleton />
+        </View>
+      ) : (
+        <FlatList
+          data={user.transactions ?? []}
+          keyExtractor={(item) => item.id}
+          renderItem={renderTransaction}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <ThemedText style={styles.empty}>No transactions yet.</ThemedText>
+          }
+        />
+      )}
     </ThemedView>
   );
 }
@@ -196,6 +217,7 @@ const styles = StyleSheet.create({
   balanceLabel: { fontSize: 14, opacity: 0.6 },
   balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   balanceAmount: { fontSize: 36, fontWeight: 'bold' },
+  checkoutHint: { fontSize: 12, opacity: 0.6 },
   rechargeButton: {
     flexDirection: 'row',
     alignItems: 'center',

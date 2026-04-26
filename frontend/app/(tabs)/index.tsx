@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/app-context';
@@ -16,119 +16,160 @@ import { MockVideoPlayer } from '@/components/mock-video-player';
 import { ProgressBar } from '@/components/progress-bar';
 import { CreditBadge } from '@/components/credit-badge';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { getFeed, recordInteraction, FeedItem } from '@/services/api-client';
-
-const MOCK_COMMENTS = [
-  { id: '1', user: 'Alex M.', text: 'This project is amazing! Can\'t wait to see the final result.' },
-  { id: '2', user: 'Jordan K.', text: 'Just backed this. Everyone should check it out!' },
-  { id: '3', user: 'Sam L.', text: 'The rewards are so worth it.' },
-  { id: '4', user: 'Riley P.', text: 'How long until the campaign ends?' },
-  { id: '5', user: 'Casey T.', text: 'Shared this with all my friends!' },
-];
+import { PendingIndicator } from '@/components/pending-indicator';
+import { CommentListSkeleton, FeedItemSkeleton } from '@/components/skeleton';
+import { getFeed, FeedItem } from '@/services/api-client';
 
 export default function FeedScreen() {
-  const { projects, user } = useApp();
+  const {
+    projects,
+    user,
+    recordInteraction,
+    commentsByVideo,
+    commentCounts,
+    pending,
+    loadVideoComments,
+    addVideoComment,
+    deleteVideoComment,
+    setCommentCount,
+  } = useApp();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
 
-  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [activeCommentsVideoId, setActiveCommentsVideoId] = useState<string | null>(null);
+  // Holds the last opened video id so the modal contents stay populated through
+  // the fade-out animation after activeCommentsVideoId is cleared.
+  const [displayedCommentsVideoId, setDisplayedCommentsVideoId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState(MOCK_COMMENTS);
   const [containerHeight, setContainerHeight] = useState(0);
-  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [feedItems, setFeedItems] = useState<FeedItem[] | null>(null);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
-  // Load feed from API when user is available
+  const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 80 });
+  const onViewableItemsChangedRef = useRef(
+    ({ viewableItems }: { viewableItems: { item: FeedItem }[] }) => {
+      const first = viewableItems[0];
+      if (first) setActiveVideoId(first.item.video.id);
+    },
+  );
+
+  // Fallback feed derived from local projects — used while authenticated feed
+  // hasn't loaded yet, or for unauthenticated browsing.
+  const fallbackFeed = useMemo<FeedItem[]>(() => {
+    return projects.flatMap((project) =>
+      project.videos.map((video) => ({
+        video: { ...video, videoUrl: video.videoUrl ?? null },
+        project: {
+          id: project.id,
+          title: project.title,
+          creatorName: project.creatorName,
+          raisedCredits: project.raisedCredits,
+          goalCredits: project.goalCredits,
+          backerCount: project.backerCount,
+        },
+        interaction: { liked: false, disliked: false },
+        commentCount: 0,
+      })),
+    );
+  }, [projects]);
+
   useEffect(() => {
     if (!user) {
-      // Fall back to local project data when not authenticated
-      const items = projects.flatMap((project) =>
-        project.videos.map((video) => ({
-          video: { ...video, videoUrl: null },
-          project: {
-            id: project.id,
-            title: project.title,
-            creatorName: project.creatorName,
-            raisedCredits: project.raisedCredits,
-            goalCredits: project.goalCredits,
-            backerCount: project.backerCount,
-          },
-          interaction: { liked: false, disliked: false },
-        })),
-      );
-      setFeedItems(items);
+      setFeedItems(fallbackFeed);
       return;
     }
+    let cancelled = false;
     getFeed(20, 0)
-      .then(setFeedItems)
+      .then((items) => {
+        if (!cancelled) setFeedItems(items);
+      })
       .catch(() => {
-        // Fallback to projects-based feed
-        const items = projects.flatMap((project) =>
-          project.videos.map((video) => ({
-            video: { ...video, videoUrl: null },
-            project: {
-              id: project.id,
-              title: project.title,
-              creatorName: project.creatorName,
-              raisedCredits: project.raisedCredits,
-              goalCredits: project.goalCredits,
-              backerCount: project.backerCount,
-            },
-            interaction: { liked: false, disliked: false },
-          })),
-        );
-        setFeedItems(items);
+        if (!cancelled) setFeedItems(fallbackFeed);
       });
-  }, [user, projects]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, fallbackFeed]);
+
+  useEffect(() => {
+    if (activeVideoId !== null) return;
+    if (feedItems && feedItems.length > 0) {
+      setActiveVideoId(feedItems[0].video.id);
+    }
+  }, [feedItems, activeVideoId]);
+
+  // Seed per-video comment counts from the feed payload so the side-bar number
+  // is accurate before the user opens the modal.
+  useEffect(() => {
+    if (!feedItems) return;
+    feedItems.forEach((item) => setCommentCount(item.video.id, item.commentCount));
+  }, [feedItems, setCommentCount]);
+
+  // Load real comments when the modal is opened for a video, and pin the
+  // displayed id so contents survive the close animation.
+  useEffect(() => {
+    if (activeCommentsVideoId) {
+      setDisplayedCommentsVideoId(activeCommentsVideoId);
+      loadVideoComments(activeCommentsVideoId);
+    }
+  }, [activeCommentsVideoId, loadVideoComments]);
 
   const handleLike = useCallback(
-    async (videoId: string, currentlyLiked: boolean) => {
-      await recordInteraction(videoId, 'like');
+    (videoId: string, currentlyLiked: boolean) => {
+      // Optimistic local update; record interaction in background.
       setFeedItems((prev) =>
-        prev.map((item) =>
-          item.video.id === videoId
-            ? {
-                ...item,
-                interaction: {
-                  liked: !currentlyLiked,
-                  disliked: false,
-                },
-              }
-            : item,
-        ),
+        prev
+          ? prev.map((item) =>
+              item.video.id === videoId
+                ? {
+                    ...item,
+                    interaction: { liked: !currentlyLiked, disliked: false },
+                  }
+                : item,
+            )
+          : prev,
       );
+      recordInteraction(videoId, 'like');
     },
-    [],
+    [recordInteraction],
   );
 
   const handleDislike = useCallback(
-    async (videoId: string, currentlyDisliked: boolean) => {
-      await recordInteraction(videoId, 'dislike');
+    (videoId: string, currentlyDisliked: boolean) => {
       setFeedItems((prev) =>
-        prev.map((item) =>
-          item.video.id === videoId
-            ? {
-                ...item,
-                interaction: {
-                  liked: false,
-                  disliked: !currentlyDisliked,
-                },
-              }
-            : item,
-        ),
+        prev
+          ? prev.map((item) =>
+              item.video.id === videoId
+                ? {
+                    ...item,
+                    interaction: { liked: false, disliked: !currentlyDisliked },
+                  }
+                : item,
+            )
+          : prev,
       );
+      recordInteraction(videoId, 'dislike');
     },
-    [],
+    [recordInteraction],
   );
 
-  const handleAddComment = useCallback(() => {
-    if (!commentText.trim()) return;
-    setComments((prev) => [
-      { id: String(Date.now()), user: 'You', text: commentText.trim() },
-      ...prev,
-    ]);
-    setCommentText('');
-  }, [commentText]);
+  const handleAddComment = useCallback(async () => {
+    const text = commentText.trim();
+    if (!text || !displayedCommentsVideoId) return;
+    const result = await addVideoComment(displayedCommentsVideoId, text);
+    if (result) setCommentText('');
+  }, [commentText, displayedCommentsVideoId, addVideoComment]);
+
+  const activeCommentsLoaded =
+    displayedCommentsVideoId !== null && commentsByVideo[displayedCommentsVideoId] !== undefined;
+  const activeComments = displayedCommentsVideoId
+    ? commentsByVideo[displayedCommentsVideoId] ?? []
+    : [];
+  const activeCommentsPending = displayedCommentsVideoId
+    ? (pending.comments[displayedCommentsVideoId]?.length ?? 0) > 0
+    : false;
+  const sendDisabled = !commentText.trim() || activeCommentsPending || !user;
 
   const renderItem = ({ item }: { item: FeedItem }) => {
     const { project, video, interaction } = item;
@@ -142,9 +183,11 @@ export default function FeedScreen() {
           thumbnailUrl={video.thumbnailUrl}
           status={video.status}
           fullScreen
+          controls={false}
+          loop
+          active={video.id === activeVideoId}
         />
 
-        {/* Bottom overlay */}
         <View style={styles.bottomOverlay}>
           <ThemedText style={styles.videoTitle}>{video.title}</ThemedText>
           <ThemedText style={styles.projectTitle}>{project.title}</ThemedText>
@@ -177,7 +220,6 @@ export default function FeedScreen() {
           </View>
         </View>
 
-        {/* Right side action bar */}
         <View style={styles.sideBar}>
           <Pressable
             style={styles.sideButton}
@@ -212,27 +254,32 @@ export default function FeedScreen() {
 
           <Pressable
             style={styles.sideButton}
-            onPress={() => setCommentsVisible(true)}>
+            onPress={() => setActiveCommentsVideoId(video.id)}>
             <IconSymbol name="bubble.right.fill" size={28} color="#fff" />
-            <ThemedText style={styles.sideLabel}>{comments.length}</ThemedText>
+            <ThemedText style={styles.sideLabel}>
+              {commentCounts[video.id] ?? item.commentCount ?? 0}
+            </ThemedText>
           </Pressable>
         </View>
       </View>
     );
   };
 
+  const showSkeleton = containerHeight > 0 && feedItems === null;
+
   return (
     <View
       style={styles.container}
       onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}>
-      {/* Fixed credit balance overlay */}
       {user && (
         <View style={[styles.topBar, { top: insets.top + 8 }]} pointerEvents="none">
           <CreditBadge amount={user.creditBalance} />
         </View>
       )}
 
-      {containerHeight > 0 && (
+      {showSkeleton && <FeedItemSkeleton height={containerHeight} />}
+
+      {containerHeight > 0 && feedItems !== null && (
         <FlatList
           ref={flatListRef}
           data={feedItems}
@@ -245,67 +292,101 @@ export default function FeedScreen() {
             offset: containerHeight * index,
             index,
           })}
+          viewabilityConfig={viewabilityConfigRef.current}
+          onViewableItemsChanged={onViewableItemsChangedRef.current}
         />
       )}
 
-      {/* Comments bottom sheet */}
       <Modal
-        visible={commentsVisible}
-        animationType="slide"
+        visible={activeCommentsVideoId !== null}
+        animationType="fade"
         transparent
-        onRequestClose={() => setCommentsVisible(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setCommentsVisible(false)} />
-        <View style={[styles.commentsSheet, { paddingBottom: insets.bottom || 16 }]}>
-          {/* Handle */}
+        onRequestClose={() => setActiveCommentsVideoId(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setActiveCommentsVideoId(null)}
+          />
+          <View style={[styles.commentsSheet, { paddingBottom: insets.bottom || 16 }]}>
           <View style={styles.sheetHandle} />
 
-          {/* Header */}
           <View style={styles.commentsHeader}>
             <ThemedText style={styles.commentsTitle}>
-              Comments ({comments.length})
+              {activeCommentsLoaded ? `Comments (${activeComments.length})` : 'Comments'}
             </ThemedText>
-            <Pressable onPress={() => setCommentsVisible(false)}>
+            <Pressable onPress={() => setActiveCommentsVideoId(null)}>
               <IconSymbol name="xmark" size={22} color="#888" />
             </Pressable>
           </View>
 
-          {/* Comment list */}
+          {!activeCommentsLoaded ? (
+            <View style={styles.commentsList}>
+              <CommentListSkeleton count={6} />
+            </View>
+          ) : (
           <FlatList
-            data={comments}
-            keyExtractor={(item) => item.id}
+            data={activeComments}
+            keyExtractor={(c) => c.id}
             style={styles.commentsList}
-            renderItem={({ item }) => (
-              <View style={styles.commentRow}>
-                <View style={styles.commentAvatar}>
-                  <ThemedText style={styles.commentAvatarText}>
-                    {item.user.charAt(0)}
-                  </ThemedText>
+            ListEmptyComponent={
+              <ThemedText style={styles.emptyComments}>Be the first to comment.</ThemedText>
+            }
+            renderItem={({ item: comment }) => {
+              const isOwn = !!user && comment.userId === user.id;
+              return (
+                <View style={styles.commentRow}>
+                  <View style={styles.commentAvatar}>
+                    <ThemedText style={styles.commentAvatarText}>
+                      {comment.userName.charAt(0).toUpperCase()}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.commentContent}>
+                    <ThemedText style={styles.commentUser}>{comment.userName}</ThemedText>
+                    <ThemedText style={styles.commentText}>{comment.text}</ThemedText>
+                  </View>
+                  {isOwn && displayedCommentsVideoId && (
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => deleteVideoComment(displayedCommentsVideoId, comment.id)}
+                      style={styles.commentDeleteButton}>
+                      <IconSymbol name="trash.fill" size={16} color="rgba(255,255,255,0.5)" />
+                    </Pressable>
+                  )}
                 </View>
-                <View style={styles.commentContent}>
-                  <ThemedText style={styles.commentUser}>{item.user}</ThemedText>
-                  <ThemedText style={styles.commentText}>{item.text}</ThemedText>
-                </View>
-              </View>
-            )}
+              );
+            }}
           />
+          )}
 
-          {/* Input */}
-          <View style={styles.commentInputRow}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Add a comment..."
-              placeholderTextColor="#999"
-              value={commentText}
-              onChangeText={setCommentText}
-              onSubmitEditing={handleAddComment}
-              returnKeyType="send"
-            />
-            <Pressable
-              style={[styles.sendButton, !commentText.trim() && { opacity: 0.4 }]}
-              onPress={handleAddComment}
-              disabled={!commentText.trim()}>
-              <IconSymbol name="paperplane.fill" size={20} color="#fff" />
-            </Pressable>
+          {user ? (
+            <View style={styles.commentInputRow}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Add a comment..."
+                placeholderTextColor="#999"
+                value={commentText}
+                onChangeText={setCommentText}
+                onSubmitEditing={handleAddComment}
+                returnKeyType="send"
+                editable={!activeCommentsPending}
+                maxLength={500}
+              />
+              <Pressable
+                style={[styles.sendButton, sendDisabled && { opacity: 0.4 }]}
+                onPress={handleAddComment}
+                disabled={sendDisabled}>
+                {activeCommentsPending ? (
+                  <PendingIndicator size={14} color="#fff" style={styles.sendPending} />
+                ) : (
+                  <IconSymbol name="paperplane.fill" size={20} color="#fff" />
+                )}
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.commentInputRow}>
+              <ThemedText style={styles.signInHint}>Sign in to comment.</ThemedText>
+            </View>
+          )}
           </View>
         </View>
       </Modal>
@@ -372,17 +453,19 @@ const styles = StyleSheet.create({
   },
   sideButton: { alignItems: 'center', gap: 2 },
   sideLabel: { color: '#fff', fontSize: 12 },
-
-  // Comments bottom sheet
-  modalBackdrop: {
+  modalRoot: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   commentsSheet: {
     backgroundColor: '#1c1c1e',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    maxHeight: '60%',
+    height: '60%',
     paddingHorizontal: 16,
   },
   sheetHandle: {
@@ -403,7 +486,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   commentsTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  commentsList: { marginVertical: 8 },
+  commentsList: { flex: 1, marginVertical: 8 },
   commentRow: {
     flexDirection: 'row',
     gap: 10,
@@ -445,5 +528,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a7ea4',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendPending: {
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  commentDeleteButton: {
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+  },
+  emptyComments: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  signInHint: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    flex: 1,
+    textAlign: 'center',
+    paddingVertical: 10,
   },
 });

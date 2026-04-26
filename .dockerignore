@@ -1,0 +1,41 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Frontend (not part of backend image)
+frontend
+node_modules
+landing-page
+
+# Plans / docs
+*.md
+.claude
+.github
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.venv
+venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Secrets / local env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build artifacts
+deploy
+dist
+build
+*.egg-info

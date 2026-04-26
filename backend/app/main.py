@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, feed, mux_webhooks, projects, stripe_webhooks, users, wallet
+from app.routers import auth, comments, feed, mux_webhooks, projects, stripe_webhooks, users, wallet
 
 app = FastAPI(title="Quickstarter API", version="1.0.0")
 
@@ -18,6 +18,7 @@ app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"])
 app.include_router(wallet.router, prefix="/api/v1/wallet", tags=["wallet"])
 app.include_router(feed.router, prefix="/api/v1/feed", tags=["feed"])
+app.include_router(comments.router, prefix="/api/v1/videos", tags=["comments"])
 app.include_router(stripe_webhooks.router, prefix="/api/v1/stripe", tags=["stripe"])
 app.include_router(mux_webhooks.router, prefix="/api/v1/mux", tags=["mux"])
 

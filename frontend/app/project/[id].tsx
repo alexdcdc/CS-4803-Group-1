@@ -2,11 +2,13 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
+import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MockVideoPlayer } from '@/components/mock-video-player';
 import { ProgressBar } from '@/components/progress-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { RewardSkeleton, Skeleton, SkeletonText, VideoTileSkeleton } from '@/components/skeleton';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Project } from '@/data/types';
 import * as api from '@/services/api-client';
@@ -14,19 +16,32 @@ import * as api from '@/services/api-client';
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [project, setProject] = useState<Project | null>(null);
+  const { projects } = useApp();
   const textColor = useThemeColor({}, 'text');
 
+  const fromContext = id ? projects.find((p) => p.id === id) : undefined;
+  const [project, setProject] = useState<Project | null>(fromContext ?? null);
+
+  // Stay in sync with context (e.g. after a donation reconciles).
   useEffect(() => {
-    if (id) api.getProject(id).then((p) => p && setProject(p));
+    if (fromContext) setProject(fromContext);
+  }, [fromContext]);
+
+  // Always refetch in the background so the detail screen ends up canonical
+  // even if context only had the summary version.
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    api.getProject(id).then((p) => {
+      if (!cancelled && p) setProject(p);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (!project) {
-    return (
-      <ThemedView style={styles.container}>
-        <ThemedText>Loading...</ThemedText>
-      </ThemedView>
-    );
+    return <ProjectDetailSkeleton textColor={textColor} />;
   }
 
   const progress = project.goalCredits > 0 ? project.raisedCredits / project.goalCredits : 0;
@@ -34,7 +49,6 @@ export default function ProjectDetailScreen() {
   return (
     <ScrollView style={{ flex: 1 }}>
       <ThemedView style={styles.container}>
-        {/* Hero video */}
         <MockVideoPlayer
           color={project.videos[0]?.placeholderColor ?? '#333'}
           height={240}
@@ -47,7 +61,6 @@ export default function ProjectDetailScreen() {
           <ThemedText type="title">{project.title}</ThemedText>
           <ThemedText style={styles.creator}>by {project.creatorName}</ThemedText>
 
-          {/* Progress */}
           <View style={styles.progressSection}>
             <ProgressBar progress={progress} trackColor={textColor + '15'} fillColor="#22c55e" />
             <View style={styles.statsRow}>
@@ -61,10 +74,8 @@ export default function ProjectDetailScreen() {
             </View>
           </View>
 
-          {/* Description */}
           <ThemedText style={styles.description}>{project.description}</ThemedText>
 
-          {/* Rewards */}
           {project.rewards.length > 0 && (
             <View style={styles.rewardsSection}>
               <ThemedText type="subtitle">Rewards</ThemedText>
@@ -87,7 +98,6 @@ export default function ProjectDetailScreen() {
             </View>
           )}
 
-          {/* Videos */}
           {project.videos.length > 1 && (
             <View style={styles.videosSection}>
               <ThemedText type="subtitle">More Videos</ThemedText>
@@ -102,13 +112,47 @@ export default function ProjectDetailScreen() {
             </View>
           )}
 
-          {/* Donate CTA */}
           <Pressable
             style={styles.donateButton}
             onPress={() => router.push({ pathname: '/donate', params: { projectId: project.id } })}>
             <IconSymbol name="heart.fill" size={20} color="#fff" />
             <ThemedText style={styles.donateText}>Back This Project</ThemedText>
           </Pressable>
+        </View>
+      </ThemedView>
+    </ScrollView>
+  );
+}
+
+function ProjectDetailSkeleton({ textColor }: { textColor: string }) {
+  return (
+    <ScrollView style={{ flex: 1 }}>
+      <ThemedView style={styles.container}>
+        <Skeleton width="100%" height={240} radius={0} />
+        <View style={styles.content}>
+          <SkeletonText size="title" width="80%" />
+          <SkeletonText size="small" width="40%" />
+          <View style={styles.progressSection}>
+            <Skeleton height={6} radius={3} />
+            <View style={styles.statsRow}>
+              <SkeletonText size="small" width="35%" />
+              <SkeletonText size="small" width="25%" />
+            </View>
+          </View>
+          <SkeletonText width="100%" />
+          <SkeletonText width="92%" />
+          <SkeletonText width="60%" />
+          <View style={styles.rewardsSection}>
+            <SkeletonText size="title" width="35%" />
+            <RewardSkeleton />
+            <RewardSkeleton />
+          </View>
+          <View style={styles.videosSection}>
+            <SkeletonText size="title" width="40%" />
+            <VideoTileSkeleton />
+            <VideoTileSkeleton />
+          </View>
+          <Skeleton height={48} radius={24} style={{ marginTop: 12, backgroundColor: 'rgba(225,29,72,0.18)', borderColor: textColor + '00' }} />
         </View>
       </ThemedView>
     </ScrollView>

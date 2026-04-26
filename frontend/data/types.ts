@@ -73,3 +73,12 @@ export interface CreatorEarnings {
   paidOut: number;
   available: number;
 }
+
+export interface Comment {
+  id: string;
+  videoId: string;
+  userId: string;
+  userName: string;
+  text: string;
+  createdAt: string;
+}

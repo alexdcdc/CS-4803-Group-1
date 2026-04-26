@@ -6,25 +6,31 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ProgressBar } from '@/components/progress-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { PendingIndicator } from '@/components/pending-indicator';
+import { ProjectCardSkeletonList } from '@/components/skeleton';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Project } from '@/data/types';
+import { isTempId } from '@/utils/optimistic';
 
 // ─── Creator Dashboard ──────────────────────────────────────────
 
 function CreatorDashboard() {
-  const { projects } = useApp();
+  const { projects, loading, pending } = useApp();
   const router = useRouter();
   const textColor = useThemeColor({}, 'text');
 
   const ownedCampaigns = projects.filter((p) => p.isOwned);
   const totalEarnings = ownedCampaigns.reduce((sum, p) => sum + p.raisedCredits, 0);
+  const showSkeleton = loading && ownedCampaigns.length === 0;
 
   const renderCampaign = ({ item }: { item: Project }) => {
     const progress = item.goalCredits > 0 ? item.raisedCredits / item.goalCredits : 0;
     const firstVideo = item.videos[0];
+    const isPending = isTempId(item.id) || pending.newProjects.includes(item.id);
     return (
       <Pressable
-        style={styles.campaignCard}
+        style={[styles.campaignCard, isPending && { opacity: 0.7 }]}
+        disabled={isPending}
         onPress={() => router.push({ pathname: '/campaign/[id]', params: { id: item.id } })}>
         <View style={[styles.campaignThumb, { backgroundColor: firstVideo?.placeholderColor ?? '#333' }]}>
           {firstVideo?.thumbnailUrl && (
@@ -33,7 +39,12 @@ function CreatorDashboard() {
           <ThemedText style={styles.videoCount}>{item.videos.length} videos</ThemedText>
         </View>
         <View style={styles.campaignInfo}>
-          <ThemedText style={styles.campaignTitle}>{item.title}</ThemedText>
+          <View style={styles.titleRow}>
+            <ThemedText style={styles.campaignTitle} numberOfLines={1}>
+              {item.title}
+            </ThemedText>
+            {isPending ? <PendingIndicator size={10} /> : null}
+          </View>
           <ProgressBar progress={progress} trackColor={textColor + '15'} fillColor="#22c55e" height={4} />
           <ThemedText style={styles.campaignStats}>
             {item.raisedCredits.toLocaleString()} / {item.goalCredits.toLocaleString()} credits · {item.backerCount} backers
@@ -48,7 +59,6 @@ function CreatorDashboard() {
 
   return (
     <>
-      {/* Earnings summary */}
       <View style={styles.earningsCard}>
         <IconSymbol name="dollarsign.circle.fill" size={28} color="#f59e0b" />
         <View>
@@ -59,7 +69,6 @@ function CreatorDashboard() {
         </View>
       </View>
 
-      {/* Create campaign button */}
       <Pressable
         style={styles.createButton}
         onPress={() => router.push('/create-campaign')}>
@@ -67,22 +76,25 @@ function CreatorDashboard() {
         <ThemedText style={styles.createText}>Create New Campaign</ThemedText>
       </Pressable>
 
-      {/* Campaigns list */}
       <ThemedText type="subtitle" style={styles.sectionTitle}>
         Your Campaigns ({ownedCampaigns.length})
       </ThemedText>
 
-      <FlatList
-        data={ownedCampaigns}
-        keyExtractor={(item) => item.id}
-        renderItem={renderCampaign}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <ThemedText style={styles.empty}>
-            No campaigns yet. Create one to get started!
-          </ThemedText>
-        }
-      />
+      {showSkeleton ? (
+        <ProjectCardSkeletonList count={3} />
+      ) : (
+        <FlatList
+          data={ownedCampaigns}
+          keyExtractor={(item) => item.id}
+          renderItem={renderCampaign}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <ThemedText style={styles.empty}>
+              No campaigns yet. Create one to get started!
+            </ThemedText>
+          }
+        />
+      )}
     </>
   );
 }
@@ -90,7 +102,7 @@ function CreatorDashboard() {
 // ─── Backer Dashboard ───────────────────────────────────────────
 
 function BackerDashboard() {
-  const { projects, user } = useApp();
+  const { projects, user, loading } = useApp();
   const router = useRouter();
   const textColor = useThemeColor({}, 'text');
 
@@ -98,6 +110,7 @@ function BackerDashboard() {
   const totalDonated = (user?.transactions ?? [])
     .filter((t) => t.type === 'donation')
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const showSkeleton = loading && backedProjects.length === 0;
 
   const renderProject = ({ item }: { item: Project }) => {
     const progress = item.goalCredits > 0 ? item.raisedCredits / item.goalCredits : 0;
@@ -125,7 +138,6 @@ function BackerDashboard() {
 
   return (
     <>
-      {/* Backing summary */}
       <View style={[styles.earningsCard, { backgroundColor: 'rgba(59,130,246,0.1)' }]}>
         <IconSymbol name="heart.fill" size={28} color="#3b82f6" />
         <View>
@@ -136,7 +148,6 @@ function BackerDashboard() {
         </View>
       </View>
 
-      {/* Discover button */}
       <Pressable
         style={[styles.createButton, { backgroundColor: '#3b82f6' }]}
         onPress={() => router.push('/(tabs)/discover')}>
@@ -144,22 +155,25 @@ function BackerDashboard() {
         <ThemedText style={styles.createText}>Discover Projects</ThemedText>
       </Pressable>
 
-      {/* Backed projects */}
       <ThemedText type="subtitle" style={styles.sectionTitle}>
         {"Projects You've Backed"} ({backedProjects.length})
       </ThemedText>
 
-      <FlatList
-        data={backedProjects}
-        keyExtractor={(item) => item.id}
-        renderItem={renderProject}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <ThemedText style={styles.empty}>
-            {"No backed projects yet. Explore and support creators!"}
-          </ThemedText>
-        }
-      />
+      {showSkeleton ? (
+        <ProjectCardSkeletonList count={3} />
+      ) : (
+        <FlatList
+          data={backedProjects}
+          keyExtractor={(item) => item.id}
+          renderItem={renderProject}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <ThemedText style={styles.empty}>
+              {"No backed projects yet. Explore and support creators!"}
+            </ThemedText>
+          }
+        />
+      )}
     </>
   );
 }
@@ -167,7 +181,7 @@ function BackerDashboard() {
 // ─── Main Dashboard Screen ──────────────────────────────────────
 
 export default function DashboardScreen() {
-  const { user, toggleUserRole } = useApp();
+  const { user, toggleUserRole, pending } = useApp();
   const router = useRouter();
   const textColor = useThemeColor({}, 'text');
 
@@ -180,7 +194,10 @@ export default function DashboardScreen() {
           {isCreator ? 'Creator Dashboard' : 'Backer Dashboard'}
         </ThemedText>
         <View style={styles.headerActions}>
-          <Pressable style={styles.toggleButton} onPress={toggleUserRole}>
+          <Pressable
+            style={[styles.toggleButton, pending.roleSwap && { opacity: 0.7 }]}
+            onPress={toggleUserRole}
+            disabled={pending.roleSwap}>
             <IconSymbol name="arrow.left.arrow.right" size={18} color="#fff" />
             <ThemedText style={styles.toggleText}>
               {isCreator ? 'Backer' : 'Creator'}
@@ -269,7 +286,8 @@ const styles = StyleSheet.create({
   },
   videoCount: { color: '#fff', fontSize: 11, fontWeight: '600' },
   campaignInfo: { flex: 1, justifyContent: 'center', gap: 4 },
-  campaignTitle: { fontSize: 16, fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  campaignTitle: { fontSize: 16, fontWeight: '600', flex: 1 },
   creatorName: { fontSize: 13, opacity: 0.5 },
   campaignStats: { fontSize: 12, opacity: 0.5 },
   rewardCount: { fontSize: 12, opacity: 0.5 },

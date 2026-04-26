@@ -1,4 +1,5 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEffect } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -13,6 +14,14 @@ interface MockVideoPlayerProps {
   videoUrl?: string | null;
   thumbnailUrl?: string | null;
   status?: VideoStatus;
+  /** Show native playback controls. Defaults to true. */
+  controls?: boolean;
+  /** Loop playback. Defaults to false. */
+  loop?: boolean;
+  /** Mute playback. Defaults to false. */
+  muted?: boolean;
+  /** When false, pauses the player; when true, plays. Defaults to true. */
+  active?: boolean;
 }
 
 export function MockVideoPlayer({
@@ -22,10 +31,24 @@ export function MockVideoPlayer({
   videoUrl,
   thumbnailUrl,
   status,
+  controls = true,
+  loop = false,
+  muted = false,
+  active = true,
 }: MockVideoPlayerProps) {
   const player = useVideoPlayer(videoUrl ?? null, (p) => {
-    p.loop = false;
+    p.loop = loop;
+    p.muted = muted;
   });
+
+  useEffect(() => {
+    if (!videoUrl) return;
+    if (active) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [active, player, videoUrl]);
 
   const containerStyle = [
     styles.container,
@@ -39,8 +62,8 @@ export function MockVideoPlayer({
         <VideoView
           style={StyleSheet.absoluteFillObject}
           player={player}
-          allowsFullscreen
-          nativeControls
+          allowsFullscreen={controls}
+          nativeControls={controls}
           contentFit="cover"
         />
       </View>

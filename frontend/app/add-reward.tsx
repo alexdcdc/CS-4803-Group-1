@@ -18,12 +18,10 @@ export default function AddRewardScreen() {
   const [description, setDescription] = useState('');
   const [minDonation, setMinDonation] = useState('');
   const [fileName, setFileName] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const isValid = title.trim().length > 0 && description.trim().length > 0 && Number(minDonation) > 0;
 
   const handlePickFile = () => {
-    // Simulated file picker for wireframe
     const mockFiles = [
       'wallpapers-hd.zip',
       'sheet-music-bundle.pdf',
@@ -35,15 +33,16 @@ export default function AddRewardScreen() {
     setFileName(picked);
   };
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     if (!isValid || !campaignId) return;
-    setLoading(true);
-    await addReward(campaignId, {
+    // Fire and forget — context appends a temp reward immediately, swaps in
+    // the real one once the API resolves, and shows a toast on failure.
+    addReward(campaignId, {
       title: title.trim(),
       description: description.trim(),
       minDonation: Number(minDonation),
       fileName: fileName || undefined,
-    });
+    }).catch(() => {});
     router.back();
   };
 
@@ -122,12 +121,10 @@ export default function AddRewardScreen() {
       </Pressable>
 
       <Pressable
-        style={[styles.addButton, (!isValid || loading) && { opacity: 0.5 }]}
+        style={[styles.addButton, !isValid && { opacity: 0.5 }]}
         onPress={handleAdd}
-        disabled={!isValid || loading}>
-        <ThemedText style={styles.addText}>
-          {loading ? 'Adding...' : 'Add Reward'}
-        </ThemedText>
+        disabled={!isValid}>
+        <ThemedText style={styles.addText}>Add Reward</ThemedText>
       </Pressable>
     </ThemedView>
   );

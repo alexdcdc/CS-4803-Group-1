@@ -21,6 +21,7 @@ class FeedItem(BaseModel):
     video: ProjectVideoOut
     project: FeedProjectSummary
     interaction: FeedInteraction
+    commentCount: int = 0
 
 
 class RecordInteractionRequest(BaseModel):

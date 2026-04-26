@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-import { ConnectStatus, CreatorEarnings, Project, ProjectVideo, Reward, User, UserRole } from '@/data/types';
+import { Comment, ConnectStatus, CreatorEarnings, Project, ProjectVideo, Reward, User, UserRole } from '@/data/types';
 import { API_BASE_URL, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/services/config';
 
 // ─── Supabase Client (auth only) ──────────────────────────────
@@ -276,6 +276,7 @@ export interface FeedItem {
     liked: boolean;
     disliked: boolean;
   };
+  commentCount: number;
 }
 
 export async function getFeed(limit = 10, offset = 0): Promise<FeedItem[]> {
@@ -290,4 +291,21 @@ export async function recordInteraction(
     method: 'POST',
     body: JSON.stringify({ videoId, type }),
   });
+}
+
+// ─── Comments ──────────────────────────────────────────────────
+
+export async function getVideoComments(videoId: string): Promise<Comment[]> {
+  return apiFetch<Comment[]>(`/videos/${videoId}/comments`);
+}
+
+export async function addVideoComment(videoId: string, text: string): Promise<Comment> {
+  return apiFetch<Comment>(`/videos/${videoId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function deleteVideoComment(commentId: string): Promise<void> {
+  await apiFetch(`/videos/comments/${commentId}`, { method: 'DELETE' });
 }

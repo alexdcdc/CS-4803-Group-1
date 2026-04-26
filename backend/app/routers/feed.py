@@ -49,6 +49,14 @@ async def get_feed(user: CurrentUser, limit: int = 10, offset: int = 0):
         elif i["interaction_type"] == "dislike":
             interaction_map[vid]["disliked"] = True
 
+    # Tally comment counts per video. supabase-py doesn't support per-group
+    # aggregates, so pull rows and count in Python (fine at current scale).
+    comment_counts: dict[str, int] = {}
+    if video_ids:
+        comments_resp = anon.table("video_comments").select("video_id").in_("video_id", video_ids).execute()
+        for c in comments_resp.data:
+            comment_counts[c["video_id"]] = comment_counts.get(c["video_id"], 0) + 1
+
     # Build feed items (random order is achieved by Postgres default + no ORDER BY)
     items = []
     for v in videos_resp.data:
@@ -71,6 +79,7 @@ async def get_feed(user: CurrentUser, limit: int = 10, offset: int = 0):
                 backerCount=stats["backer_count"],
             ),
             interaction=FeedInteraction(**inter),
+            commentCount=comment_counts.get(v["id"], 0),
         ))
 
     return items

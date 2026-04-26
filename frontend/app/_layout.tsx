@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppProvider, useApp } from '@/context/app-context';
+import { ToastProvider } from '@/components/toast/toast-context';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -65,10 +66,12 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <AppProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <RootNavigator />
-      </ThemeProvider>
-    </AppProvider>
+    <ToastProvider>
+      <AppProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <RootNavigator />
+        </ThemeProvider>
+      </AppProvider>
+    </ToastProvider>
   );
 }

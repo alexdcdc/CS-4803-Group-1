@@ -15,18 +15,18 @@ export default function CreateCampaignScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [goal, setGoal] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const isValid = title.trim().length > 0 && description.trim().length > 0 && Number(goal) > 0;
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!isValid) return;
-    setLoading(true);
-    await createCampaign({
+    // Fire and forget — AppContext inserts the campaign optimistically and
+    // surfaces a toast on failure, so we close the modal immediately.
+    createCampaign({
       title: title.trim(),
       description: description.trim(),
       goalCredits: Number(goal),
-    });
+    }).catch(() => {});
     router.back();
   };
 
@@ -70,12 +70,10 @@ export default function CreateCampaignScreen() {
       />
 
       <Pressable
-        style={[styles.createButton, (!isValid || loading) && { opacity: 0.5 }]}
+        style={[styles.createButton, !isValid && { opacity: 0.5 }]}
         onPress={handleCreate}
-        disabled={!isValid || loading}>
-        <ThemedText style={styles.createText}>
-          {loading ? 'Creating...' : 'Create Campaign'}
-        </ThemedText>
+        disabled={!isValid}>
+        <ThemedText style={styles.createText}>Create Campaign</ThemedText>
       </Pressable>
     </ThemedView>
   );

@@ -12,6 +12,10 @@ interface MockVideoPlayerProps {
   videoUrl?: string | null;
   thumbnailUrl?: string | null;
   status?: VideoStatus;
+  controls?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  active?: boolean;
 }
 
 // JSX types in the RN project don't declare intrinsic DOM elements.
@@ -26,6 +30,10 @@ export function MockVideoPlayer({
   videoUrl,
   thumbnailUrl,
   status,
+  controls = true,
+  loop = false,
+  muted = false,
+  active = true,
 }: MockVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -46,6 +54,17 @@ export function MockVideoPlayer({
     return () => hls.destroy();
   }, [videoUrl]);
 
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !videoUrl) return;
+    if (active) {
+      const p = el.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } else {
+      el.pause();
+    }
+  }, [active, videoUrl]);
+
   const containerStyle = [
     styles.container,
     { backgroundColor: color },
@@ -57,7 +76,10 @@ export function MockVideoPlayer({
       <View style={containerStyle}>
         <Video
           ref={videoRef}
-          controls
+          controls={controls || undefined}
+          loop={loop || undefined}
+          muted={muted || undefined}
+          autoPlay={active || undefined}
           playsInline
           poster={thumbnailUrl ?? undefined}
           style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}

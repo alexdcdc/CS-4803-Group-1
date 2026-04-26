@@ -17,10 +17,10 @@ const PACKAGES = [
 ];
 
 export default function RechargeScreen() {
-  const { user, refresh, startCreditCheckout } = useApp();
+  const { user, startCreditCheckout, beginCheckoutPolling } = useApp();
   const router = useRouter();
   const [selected, setSelected] = useState(500);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'pending' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 
   const handleRecharge = async () => {
     try {
@@ -28,29 +28,15 @@ export default function RechargeScreen() {
       const returnUrl = Linking.createURL('/recharge');
       const { url } = await startCreditCheckout(selected, returnUrl);
       await WebBrowser.openAuthSessionAsync(url, returnUrl);
-      await refresh();
-      setStatus('pending');
+      // Hand off polling to AppContext: it will hit /users/me until the
+      // balance reflects this purchase, or time out after 60s. The Wallet
+      // screen renders the spinner overlay.
+      beginCheckoutPolling(selected);
+      router.back();
     } catch {
       setStatus('error');
     }
   };
-
-  if (status === 'success') {
-    return (
-      <ThemedView style={styles.container}>
-        <IconSymbol name="checkmark.circle.fill" size={64} color="#22c55e" />
-        <ThemedText type="title" style={{ marginTop: 12 }}>
-          Credits Added!
-        </ThemedText>
-        <ThemedText style={styles.sub}>
-          {selected} credits have been added to your wallet.
-        </ThemedText>
-        <Pressable style={styles.doneButton} onPress={() => router.back()}>
-          <ThemedText style={styles.doneText}>Done</ThemedText>
-        </Pressable>
-      </ThemedView>
-    );
-  }
 
   return (
     <ThemedView style={styles.container}>
@@ -89,11 +75,6 @@ export default function RechargeScreen() {
             : `Buy ${selected} Credits for ${PACKAGES.find((p) => p.credits === selected)?.price}`}
         </ThemedText>
       </Pressable>
-      {status === 'pending' ? (
-        <ThemedText style={styles.pending}>
-          Payment received by Stripe. Credits appear after the webhook confirms the charge.
-        </ThemedText>
-      ) : null}
       {status === 'error' ? (
         <ThemedText style={styles.error}>
           Checkout could not be started. Check your Stripe configuration and try again.
@@ -146,16 +127,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buyText: { color: '#fff', fontWeight: '700', fontSize: 17 },
-  pending: { opacity: 0.6, marginTop: 16, textAlign: 'center' },
   error: { color: '#ef4444', marginTop: 16, textAlign: 'center' },
-  doneButton: {
-    backgroundColor: '#0a7ea4',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 24,
-    marginTop: 24,
-    width: '100%',
-    alignItems: 'center',
-  },
-  doneText: { color: '#fff', fontWeight: '700', fontSize: 17 },
 });

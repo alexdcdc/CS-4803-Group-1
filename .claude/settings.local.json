@@ -42,5 +42,9 @@
       "mcp__supabase__list_edge_functions",
       "mcp__supabase__deploy_edge_function"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase",
+    "mux"
+  ]
 }

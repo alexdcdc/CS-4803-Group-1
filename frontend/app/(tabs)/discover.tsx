@@ -6,30 +6,35 @@ import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ProjectCard } from '@/components/project-card';
+import { ProjectCardSkeletonList } from '@/components/skeleton';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Project } from '@/data/types';
 
 export default function DiscoverScreen() {
-  const { projects, searchProjects } = useApp();
+  const { projects, searchProjects, loading } = useApp();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Project[]>([]);
+  const [results, setResults] = useState<Project[] | null>(null);
   const [searching, setSearching] = useState(false);
   const router = useRouter();
   const textColor = useThemeColor({}, 'text');
 
   useEffect(() => {
     if (query.trim().length === 0) {
-      setResults(projects);
+      setResults(null);
+      setSearching(false);
       return;
     }
     setSearching(true);
     const timeout = setTimeout(async () => {
-      const r = await searchProjects(query);
-      setResults(r);
-      setSearching(false);
+      try {
+        const r = await searchProjects(query);
+        setResults(r);
+      } finally {
+        setSearching(false);
+      }
     }, 300);
     return () => clearTimeout(timeout);
-  }, [query, projects, searchProjects]);
+  }, [query, searchProjects]);
 
   const handlePress = useCallback(
     (project: Project) => {
@@ -37,6 +42,12 @@ export default function DiscoverScreen() {
     },
     [router],
   );
+
+  // Display rule: show search results if we have any (or finished searching),
+  // otherwise show all projects from context. While searching, keep prior
+  // results visible so the list doesn't blank out between keystrokes.
+  const data = results ?? projects;
+  const showColdStart = !loading ? false : data.length === 0;
 
   return (
     <ThemedView style={styles.container}>
@@ -57,17 +68,23 @@ export default function DiscoverScreen() {
         {searching && <ActivityIndicator size="small" />}
       </View>
 
-      <FlatList
-        data={results}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ProjectCard project={item} onPress={() => handlePress(item)} />
-        )}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <ThemedText style={styles.empty}>No projects found.</ThemedText>
-        }
-      />
+      {showColdStart ? (
+        <ProjectCardSkeletonList count={6} />
+      ) : (
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ProjectCard project={item} onPress={() => handlePress(item)} />
+          )}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <ThemedText style={styles.empty}>
+              {searching ? 'Searching…' : 'No projects found.'}
+            </ThemedText>
+          }
+        />
+      )}
     </ThemedView>
   );
 }
