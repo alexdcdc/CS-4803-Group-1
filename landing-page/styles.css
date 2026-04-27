@@ -2,14 +2,20 @@
   --color-primary: #6d5ef9;
   --color-secondary: #22d3ee;
   --color-accent: #ff4fa3;
+  --color-success: #10d39c;
+  --color-warning: #fbbf24;
   --color-background: #f8fafc;
-  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-surface: #ffffff;
+  --color-surface-soft: #eef2ff;
+  --color-dark: #0b0b16;
+  --color-dark-surface: #171728;
   --color-panel: #ffffff;
   --color-text: #0f172a;
   --color-muted: #475569;
   --color-border: rgba(15, 23, 42, 0.1);
-  --shadow-soft: 0 14px 34px rgba(109, 94, 249, 0.14);
-  --shadow-card: 0 12px 28px rgba(15, 23, 42, 0.07);
+  --shadow-primary: 0 14px 26px rgba(109, 94, 249, 0.32);
+  --shadow-card: 0 12px 28px rgba(15, 23, 42, 0.08);
+  --shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.06);
   --radius-xl: 32px;
   --radius-lg: 24px;
   --radius-md: 18px;
@@ -34,9 +40,8 @@ body {
   font-family: var(--font-body);
   color: var(--color-text);
   background:
-    radial-gradient(circle at top left, rgba(34, 211, 238, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(255, 79, 163, 0.16), transparent 24%),
-    linear-gradient(180deg, #fcfdff 0%, var(--color-background) 42%, #eef2ff 100%);
+    linear-gradient(180deg, rgba(238, 242, 255, 0.86) 0%, rgba(248, 250, 252, 0.96) 24rem),
+    var(--color-background);
 }
 
 a {
@@ -64,9 +69,12 @@ img {
   width: min(calc(100% - 2rem), var(--max-width));
   margin: 0 auto;
   padding: 1rem 1.25rem;
-  background: rgba(248, 250, 252, 0.88);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-  border-radius: 0 0 1.25rem 1.25rem;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  box-shadow: var(--shadow-subtle);
+  backdrop-filter: blur(18px);
 }
 
 .brand {
@@ -82,10 +90,10 @@ img {
   place-items: center;
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 0.85rem;
+  border-radius: var(--radius-sm);
   color: white;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  box-shadow: var(--shadow-soft);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .topnav {
@@ -95,7 +103,8 @@ img {
   padding: 0.5rem 0.75rem;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
 }
 
 .topnav a {
@@ -127,7 +136,7 @@ img {
   margin: 0 0 1rem;
   font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-primary);
 }
@@ -189,7 +198,7 @@ p {
   justify-content: center;
   min-height: 3.4rem;
   padding: 0.9rem 1.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   font-weight: 700;
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
@@ -202,14 +211,15 @@ p {
 
 .button-primary {
   color: white;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  box-shadow: var(--shadow-soft);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .button-secondary {
   color: var(--color-text);
   border-color: var(--color-border);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
 }
 
 .hero-signals {
@@ -234,8 +244,9 @@ p {
 .hero-signals li {
   padding: 0.75rem 1rem;
   color: var(--color-text);
-  border: 1px solid rgba(109, 94, 249, 0.14);
-  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
 }
 
 .hero-visual {
@@ -248,10 +259,11 @@ p {
 .phone-frame {
   position: relative;
   width: min(100%, 31rem);
-  padding: 1rem;
+  padding: 0.72rem;
   border-radius: 2.5rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.92));
-  box-shadow: 0 22px 56px rgba(15, 23, 42, 0.12);
+  background: var(--color-dark);
+  border: 1px solid rgba(248, 250, 252, 0.12);
+  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.18), var(--shadow-primary);
 }
 
 .phone-screen {
@@ -260,9 +272,7 @@ p {
   min-height: 34rem;
   padding: 1.4rem;
   border-radius: 2rem;
-  background:
-    radial-gradient(circle at top, rgba(34, 211, 238, 0.28), transparent 34%),
-    linear-gradient(180deg, #eef6ff 0%, #ffffff 100%);
+  background: linear-gradient(180deg, #000000 0%, var(--color-dark) 58%, var(--color-dark-surface) 100%);
 }
 
 .story-card {
@@ -270,7 +280,10 @@ p {
   padding: 1.5rem;
   border-radius: 1.6rem;
   color: white;
-  background: linear-gradient(160deg, #0f172a 0%, #30206f 55%, #6d5ef9 100%);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.32) 42%, rgba(15, 23, 42, 0.9) 100%),
+    linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
 }
 
 .story-card h2 {
@@ -293,7 +306,8 @@ p {
 .story-metrics span {
   padding: 0.5rem 0.8rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .badge-live {
@@ -302,7 +316,7 @@ p {
   font-size: 0.8rem;
   letter-spacing: 0.08em;
   color: #0f172a;
-  background: var(--color-secondary);
+  background: var(--color-warning);
 }
 
 .swipe-stack {
@@ -316,15 +330,18 @@ p {
   inset-inline: 0;
   max-width: 18rem;
   padding: 1rem 1.15rem;
-  border-radius: 1.2rem;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(248, 250, 252, 0.1);
+  border-radius: var(--radius-md);
+  color: #f8fafc;
+  background: rgba(23, 23, 40, 0.86);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
 }
 
 .mini-card span {
   display: block;
   font-size: 0.82rem;
-  color: var(--color-muted);
+  color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -354,23 +371,7 @@ p {
 }
 
 .glow {
-  position: absolute;
-  border-radius: 999px;
-  opacity: 0.8;
-}
-
-.glow-a {
-  inset: auto auto 3rem 0;
-  width: 10rem;
-  height: 10rem;
-  background: rgba(255, 79, 163, 0.28);
-}
-
-.glow-b {
-  inset: 0 0 auto auto;
-  width: 8rem;
-  height: 8rem;
-  background: rgba(34, 211, 238, 0.32);
+  display: none;
 }
 
 .problem-solution-grid {
@@ -409,7 +410,8 @@ p {
 .problem-card {
   padding: 1.25rem;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: var(--color-background);
 }
 
 .problem-card ul {
@@ -429,8 +431,8 @@ p {
   gap: 0.35rem;
   padding: 1rem 1.1rem;
   border-left: 3px solid var(--color-primary);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: rgba(255, 255, 255, 0.74);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--color-background);
 }
 
 .solution-points span {
@@ -482,12 +484,13 @@ p {
 
 .feature-icon {
   color: white;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  background: var(--color-primary);
+  box-shadow: 0 10px 20px rgba(109, 94, 249, 0.24);
 }
 
 .step-number {
   color: var(--color-text);
-  background: rgba(34, 211, 238, 0.2);
+  background: rgba(34, 211, 238, 0.14);
 }
 
 .quote-card {
@@ -500,10 +503,10 @@ p {
   position: absolute;
   top: -2rem;
   right: -1.5rem;
-  width: 7rem;
-  height: 7rem;
+  width: 0.3rem;
+  height: calc(100% + 4rem);
   border-radius: 999px;
-  background: rgba(109, 94, 249, 0.1);
+  background: var(--color-primary);
 }
 
 .quote-card p {
@@ -535,7 +538,7 @@ p {
   min-height: 2.6rem;
   padding: 0.65rem 1rem;
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--color-surface-soft);
   border: 1px solid rgba(109, 94, 249, 0.16);
 }
 
@@ -550,10 +553,10 @@ p {
   width: 100%;
   padding: 0.95rem 1rem;
   border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 1rem;
+  border-radius: var(--radius-md);
   font: inherit;
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--color-background);
 }
 
 .waitlist-form input:focus-visible,
