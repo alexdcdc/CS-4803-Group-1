@@ -16,25 +16,38 @@ export default function AuthCallbackScreen() {
   }>();
 
   useEffect(() => {
+    const isRecovery = { current: params.type === 'recovery' };
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') isRecovery.current = true;
+    });
+
     (async () => {
-      if (params.error_description) {
-        router.replace({
-          pathname: '/(auth)/login',
-          params: { error: String(params.error_description) },
-        });
-        return;
-      }
-      if (params.code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(String(params.code));
-        if (error) {
-          router.replace({ pathname: '/(auth)/login', params: { error: error.message } });
+      try {
+        if (params.error_description) {
+          router.replace({
+            pathname: '/(auth)/login',
+            params: { error: String(params.error_description) },
+          });
           return;
         }
-      }
-      if (params.type === 'recovery') {
-        router.replace('/reset-password');
-      } else {
-        router.replace('/(tabs)');
+        if (params.code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(String(params.code));
+          if (error) {
+            router.replace({ pathname: '/(auth)/login', params: { error: error.message } });
+            return;
+          }
+        }
+        // Give onAuthStateChange a tick to deliver PASSWORD_RECOVERY before we route.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (isRecovery.current) {
+          router.replace('/reset-password');
+        } else {
+          router.replace('/(tabs)');
+        }
+      } finally {
+        subscription.unsubscribe();
       }
     })();
   }, [params.code, params.type, params.error_description, router]);
