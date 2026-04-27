@@ -60,12 +60,20 @@ export async function signup(
   name: string,
   email: string,
   password: string,
-): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.auth.signUp({
+): Promise<{ success: boolean; error?: string; needsEmailVerification?: boolean }> {
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { name } },
   });
+  if (error) return { success: false, error: error.message };
+  return { success: true, needsEmailVerification: !data.session };
+}
+
+export async function resendSignupEmail(
+  email: string,
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
   if (error) return { success: false, error: error.message };
   return { success: true };
 }

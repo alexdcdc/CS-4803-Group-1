@@ -36,10 +36,15 @@ export default function SignupScreen() {
       return;
     }
     setSubmitting(true);
-    const result = await signup(name.trim(), email.trim(), password);
+    const trimmedEmail = email.trim();
+    const result = await signup(name.trim(), trimmedEmail, password);
     setSubmitting(false);
     if (!result.success) {
       setError(result.error ?? 'Signup failed');
+      return;
+    }
+    if (result.needsEmailVerification) {
+      router.replace({ pathname: '/(auth)/verify-email', params: { email: trimmedEmail } });
     }
   };
 

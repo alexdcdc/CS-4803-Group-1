@@ -80,7 +80,11 @@ interface AppActions {
   /** Seed the per-video comment count (called from the feed loader). */
   setCommentCount: (videoId: string, count: number) => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (
+    name: string,
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string; needsEmailVerification?: boolean }>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateAccount: (data: {
@@ -540,7 +544,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const signupFn: AppActions['signup'] = useCallback(
     async (name, email, password) => {
       const result = await api.signup(name, email, password);
-      if (result.success) await refresh();
+      if (result.success && !result.needsEmailVerification) await refresh();
       return result;
     },
     [refresh],

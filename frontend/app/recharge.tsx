@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 
 import { useApp } from '@/context/app-context';
@@ -22,17 +22,31 @@ export default function RechargeScreen() {
   const [selected, setSelected] = useState(500);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 
+  // On web, Stripe sets Cross-Origin-Opener-Policy which severs the parent's
+  // handle on the popup, so WebBrowser's URL-poll never resolves. The popup
+  // posts to this BroadcastChannel from the wallet screen on its way back,
+  // and we use that as the cue to close the modal.
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('stripe-checkout');
+    channel.onmessage = (event) => {
+      if (event.data?.status === 'success') beginCheckoutPolling(selected);
+      router.dismissTo('/(tabs)/wallet');
+    };
+    return () => channel.close();
+  }, [selected, beginCheckoutPolling, router]);
+
   const handleRecharge = async () => {
     try {
       setStatus('loading');
-      const returnUrl = Linking.createURL('/recharge');
+      const returnUrl = Linking.createURL('/wallet');
       const { url } = await startCreditCheckout(selected, returnUrl);
       await WebBrowser.openAuthSessionAsync(url, returnUrl);
       // Hand off polling to AppContext: it will hit /users/me until the
       // balance reflects this purchase, or time out after 60s. The Wallet
       // screen renders the spinner overlay.
       beginCheckoutPolling(selected);
-      router.back();
+      router.dismissTo('/(tabs)/wallet');
     } catch {
       setStatus('error');
     }

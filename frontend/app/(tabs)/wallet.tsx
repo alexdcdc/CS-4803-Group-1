@@ -44,6 +44,36 @@ export default function WalletScreen() {
     loadPayoutState();
   }, [loadPayoutState]);
 
+  // Web only: when this page loads as the Stripe success/cancel landing in
+  // the popup window, notify the original tab (whose recharge modal is
+  // listening) and close ourselves. WebBrowser's URL polling can't see the
+  // redirect because Stripe sets COOP, severing the popup handle.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const stripeStatus = params.get('status');
+    if (stripeStatus !== 'success' && stripeStatus !== 'cancelled') return;
+
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('stripe-checkout');
+        channel.postMessage({ status: stripeStatus });
+        channel.close();
+      } catch {}
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('status');
+    url.searchParams.delete('session_id');
+    window.history.replaceState({}, '', url.pathname + url.search);
+
+    setTimeout(() => {
+      try {
+        window.close();
+      } catch {}
+    }, 100);
+  }, []);
+
   const handleOnboarding = async () => {
     setPayoutStatus('loading');
     setPayoutError(null);
