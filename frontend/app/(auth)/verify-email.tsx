@@ -7,6 +7,7 @@ import { useToast } from '@/components/toast/toast-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function VerifyEmailScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.successContainer}>
         <View style={styles.successCircle}>
-          <IconSymbol name="envelope.fill" size={48} color="#0a7ea4" />
+          <IconSymbol name="envelope.fill" size={48} color={Brand.primary} />
         </View>
         <ThemedText type="title" style={styles.successTitle}>
           Check Your Email
@@ -52,7 +53,7 @@ export default function VerifyEmailScreen() {
           disabled={resending || !email}
           style={styles.resendButton}>
           {resending ? (
-            <ActivityIndicator color="#0a7ea4" />
+            <ActivityIndicator color={Brand.primary} />
           ) : (
             <ThemedText style={styles.resendText}>Resend email</ThemedText>
           )}
@@ -75,6 +76,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   successCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 26,
+    backgroundColor: Brand.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
   },
   successTitle: {
@@ -93,24 +100,32 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   submitButton: {
-    backgroundColor: '#0a7ea4',
-    paddingVertical: 16,
+    backgroundColor: Brand.primary,
+    paddingVertical: 18,
     paddingHorizontal: 32,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     alignItems: 'center',
     alignSelf: 'stretch',
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
   submitText: {
+    fontFamily: Fonts.displayBold,
     color: '#fff',
     fontWeight: '700',
     fontSize: 17,
+    letterSpacing: 0.2,
   },
   resendButton: {
     marginTop: 12,
     paddingVertical: 8,
   },
   resendText: {
-    color: '#0a7ea4',
+    fontFamily: Fonts.sansMedium,
+    color: Brand.primary,
     fontWeight: '600',
     fontSize: 15,
   },

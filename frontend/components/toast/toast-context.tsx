@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 
 export type ToastTone = 'info' | 'success' | 'error';
 
@@ -19,9 +20,9 @@ interface ToastApi {
 const ToastContext = createContext<ToastApi | null>(null);
 
 const TONE_BG: Record<ToastTone, string> = {
-  info: '#0a7ea4',
-  success: '#22c55e',
-  error: '#e11d48',
+  info: Brand.primary,
+  success: Brand.success,
+  error: Brand.accent,
 };
 
 const DURATION_MS = 3500;
@@ -96,16 +97,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   toast: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.22,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 6,
   },
   pressable: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
   },
-  text: { fontSize: 14, fontWeight: '600' },
+  text: { fontFamily: Fonts.sansMedium, fontSize: 14, fontWeight: '600' },
 });

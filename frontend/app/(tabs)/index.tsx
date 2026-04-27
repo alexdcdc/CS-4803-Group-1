@@ -1,4 +1,7 @@
 import {
+  Alert,
+  Animated,
+  Easing,
   FlatList,
   Modal,
   Pressable,
@@ -6,11 +9,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 import { useApp } from '@/context/app-context';
+import { useSettings } from '@/context/settings-context';
+import { useToast } from '@/components/toast/toast-context';
 import { ThemedText } from '@/components/themed-text';
 import { MockVideoPlayer } from '@/components/mock-video-player';
 import { ProgressBar } from '@/components/progress-bar';
@@ -18,6 +25,7 @@ import { CreditBadge } from '@/components/credit-badge';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { PendingIndicator } from '@/components/pending-indicator';
 import { CommentListSkeleton, FeedItemSkeleton } from '@/components/skeleton';
+import { Brand, Fonts } from '@/constants/theme';
 import { getFeed, FeedItem } from '@/services/api-client';
 
 export default function FeedScreen() {
@@ -32,10 +40,19 @@ export default function FeedScreen() {
     addVideoComment,
     deleteVideoComment,
     setCommentCount,
+    donate,
   } = useApp();
+  const {
+    doubleTapEnabled,
+    autoDonateAmount,
+    hasSeenDoubleTapHint,
+    markDoubleTapHintSeen,
+  } = useSettings();
+  const toast = useToast();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
   const [activeCommentsVideoId, setActiveCommentsVideoId] = useState<string | null>(null);
   // Holds the last opened video id so the modal contents stay populated through
@@ -44,35 +61,61 @@ export default function FeedScreen() {
   const [commentText, setCommentText] = useState('');
   const [containerHeight, setContainerHeight] = useState(0);
   const [feedItems, setFeedItems] = useState<FeedItem[] | null>(null);
+  const [cycleCount, setCycleCount] = useState(1);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+
+  type CycledItem = FeedItem & { cycleKey: string };
 
   const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 80 });
   const onViewableItemsChangedRef = useRef(
-    ({ viewableItems }: { viewableItems: { item: FeedItem }[] }) => {
+    ({ viewableItems }: { viewableItems: { item: CycledItem }[] }) => {
       const first = viewableItems[0];
       if (first) setActiveVideoId(first.item.video.id);
     },
   );
 
   // Fallback feed derived from local projects — used while authenticated feed
-  // hasn't loaded yet, or for unauthenticated browsing.
+  // hasn't loaded yet, or for unauthenticated browsing. One video per project.
   const fallbackFeed = useMemo<FeedItem[]>(() => {
-    return projects.flatMap((project) =>
-      project.videos.map((video) => ({
-        video: { ...video, videoUrl: video.videoUrl ?? null },
-        project: {
-          id: project.id,
-          title: project.title,
-          creatorName: project.creatorName,
-          raisedCredits: project.raisedCredits,
-          goalCredits: project.goalCredits,
-          backerCount: project.backerCount,
-        },
-        interaction: { liked: false, disliked: false },
-        commentCount: 0,
-      })),
-    );
+    return projects
+      .filter((project) => project.videos.length > 0)
+      .map((project) => {
+        const video = project.videos[0];
+        return {
+          video: { ...video, videoUrl: video.videoUrl ?? null },
+          project: {
+            id: project.id,
+            title: project.title,
+            creatorName: project.creatorName,
+            raisedCredits: project.raisedCredits,
+            goalCredits: project.goalCredits,
+            backerCount: project.backerCount,
+          },
+          interaction: { liked: false, disliked: false },
+          commentCount: 0,
+          likeCount: 0,
+          dislikeCount: 0,
+        };
+      });
   }, [projects]);
+
+  // Repeat feedItems `cycleCount` times so the feed loops as the user scrolls.
+  const cycledItems = useMemo<CycledItem[]>(() => {
+    if (!feedItems || feedItems.length === 0) return [];
+    const out: CycledItem[] = [];
+    for (let cycle = 0; cycle < cycleCount; cycle++) {
+      for (const item of feedItems) {
+        out.push({ ...item, cycleKey: `${item.video.id}-${cycle}` });
+      }
+    }
+    return out;
+  }, [feedItems, cycleCount]);
+
+  const handleEndReached = useCallback(() => {
+    if (feedItems && feedItems.length > 0) {
+      setCycleCount((c) => c + 1);
+    }
+  }, [feedItems]);
 
   useEffect(() => {
     if (!user) {
@@ -120,14 +163,16 @@ export default function FeedScreen() {
       // Optimistic local update; record interaction in background.
       setFeedItems((prev) =>
         prev
-          ? prev.map((item) =>
-              item.video.id === videoId
-                ? {
-                    ...item,
-                    interaction: { liked: !currentlyLiked, disliked: false },
-                  }
-                : item,
-            )
+          ? prev.map((item) => {
+              if (item.video.id !== videoId) return item;
+              const wasDisliked = item.interaction.disliked;
+              return {
+                ...item,
+                interaction: { liked: !currentlyLiked, disliked: false },
+                likeCount: Math.max(0, item.likeCount + (currentlyLiked ? -1 : 1)),
+                dislikeCount: Math.max(0, item.dislikeCount + (wasDisliked ? -1 : 0)),
+              };
+            })
           : prev,
       );
       recordInteraction(videoId, 'like');
@@ -139,14 +184,16 @@ export default function FeedScreen() {
     (videoId: string, currentlyDisliked: boolean) => {
       setFeedItems((prev) =>
         prev
-          ? prev.map((item) =>
-              item.video.id === videoId
-                ? {
-                    ...item,
-                    interaction: { liked: false, disliked: !currentlyDisliked },
-                  }
-                : item,
-            )
+          ? prev.map((item) => {
+              if (item.video.id !== videoId) return item;
+              const wasLiked = item.interaction.liked;
+              return {
+                ...item,
+                interaction: { liked: false, disliked: !currentlyDisliked },
+                dislikeCount: Math.max(0, item.dislikeCount + (currentlyDisliked ? -1 : 1)),
+                likeCount: Math.max(0, item.likeCount + (wasLiked ? -1 : 0)),
+              };
+            })
           : prev,
       );
       recordInteraction(videoId, 'dislike');
@@ -161,6 +208,115 @@ export default function FeedScreen() {
     if (result) setCommentText('');
   }, [commentText, displayedCommentsVideoId, addVideoComment]);
 
+  const lastTapRef = useRef<{ id: string; time: number } | null>(null);
+  // Position of the most recent touch-down on the feed Pressable. Captured
+  // from onPressIn (which fires on touch start with reliable coords) and read
+  // back in onPress so the heart spawns where the finger actually landed
+  // rather than at a stale/release position.
+  const lastTouchPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Tracks projects already double-tapped this session so a second optimistic
+  // tap can't fire before the server reconciles the new transaction.
+  const donatedRef = useRef<Set<string>>(new Set());
+
+  type FloatingHeart = { id: number; itemKey: string; x: number; y: number; anim: Animated.Value };
+  const [hearts, setHearts] = useState<FloatingHeart[]>([]);
+  const heartIdRef = useRef(0);
+
+  const hasBackedProject = useCallback(
+    (projectId: string, projectTitle: string) => {
+      if (donatedRef.current.has(projectId)) return true;
+      return (
+        user?.transactions.some(
+          (t) => t.type === 'donation' && t.label.includes(projectTitle),
+        ) ?? false
+      );
+    },
+    [user],
+  );
+
+  const spawnHeart = useCallback((itemKey: string, x: number, y: number) => {
+    const id = ++heartIdRef.current;
+    // Start the animation already partway through the pop-in so the heart is
+    // visible at full opacity on the very first frame — Instagram-style
+    // immediate feedback.
+    const anim = new Animated.Value(0.05);
+    setHearts((prev) => [...prev, { id, itemKey, x, y, anim }]);
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 1400,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      setHearts((prev) => prev.filter((h) => h.id !== id));
+    });
+  }, []);
+
+  const handleVideoTap = useCallback(
+    (projectId: string, projectTitle: string, itemKey: string, x: number, y: number) => {
+      if (!doubleTapEnabled) return;
+      const now = Date.now();
+      const last = lastTapRef.current;
+      if (!last || last.id !== projectId || now - last.time >= 300) {
+        lastTapRef.current = { id: projectId, time: now };
+        return;
+      }
+      lastTapRef.current = null;
+
+      if (hasBackedProject(projectId, projectTitle)) {
+        // Already backed — open the donate sheet so they can see their prior
+        // contribution and back again if they want.
+        router.push({ pathname: '/donate', params: { projectId } });
+        return;
+      }
+      if (!user) {
+        toast.show('Sign in to donate', 'info');
+        return;
+      }
+      if (user.creditBalance < autoDonateAmount) {
+        toast.show('Insufficient credits', 'error');
+        return;
+      }
+
+      // Immediate visual feedback — heart pops in at the tap point and floats
+      // up. Fires synchronously before any state updates so the animation
+      // starts on the same frame as the gesture.
+      spawnHeart(itemKey, x, y);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+
+      donatedRef.current.add(projectId);
+      donate(projectId, autoDonateAmount).then((result) => {
+        if (result.success) {
+          // Confirmation toast lands once the server has acknowledged the
+          // donation — the heart is the immediate response.
+          toast.show(`Donated ${autoDonateAmount} credits to ${projectTitle}`, 'success');
+        } else {
+          donatedRef.current.delete(projectId);
+        }
+      });
+
+      if (!hasSeenDoubleTapHint) {
+        markDoubleTapHintSeen();
+        Alert.alert(
+          'Double-tap to donate',
+          `You can double-tap any video to instantly donate ${autoDonateAmount} credits. You can change the amount or turn this off in Account settings.`,
+          [{ text: 'Got it' }],
+        );
+      }
+    },
+    [
+      autoDonateAmount,
+      donate,
+      doubleTapEnabled,
+      hasBackedProject,
+      hasSeenDoubleTapHint,
+      markDoubleTapHintSeen,
+      router,
+      spawnHeart,
+      toast,
+      user,
+    ],
+  );
+
   const activeCommentsLoaded =
     displayedCommentsVideoId !== null && commentsByVideo[displayedCommentsVideoId] !== undefined;
   const activeComments = displayedCommentsVideoId
@@ -171,9 +327,11 @@ export default function FeedScreen() {
     : false;
   const sendDisabled = !commentText.trim() || activeCommentsPending || !user;
 
-  const renderItem = ({ item }: { item: FeedItem }) => {
+  const renderItem = ({ item }: { item: CycledItem }) => {
     const { project, video, interaction } = item;
     const progress = project.goalCredits > 0 ? project.raisedCredits / project.goalCredits : 0;
+    const itemHearts = hearts.filter((h) => h.itemKey === item.cycleKey);
+    const alreadyBacked = hasBackedProject(project.id, project.title);
 
     return (
       <View style={[styles.feedItem, { height: containerHeight }]}>
@@ -185,8 +343,57 @@ export default function FeedScreen() {
           fullScreen
           controls={false}
           loop
-          active={video.id === activeVideoId}
+          active={isFocused && video.id === activeVideoId}
         />
+
+        {doubleTapEnabled && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPressIn={(e) => {
+              lastTouchPosRef.current = {
+                x: e.nativeEvent.locationX,
+                y: e.nativeEvent.locationY,
+              };
+            }}
+            onPress={() => {
+              const { x, y } = lastTouchPosRef.current;
+              handleVideoTap(project.id, project.title, item.cycleKey, x, y);
+            }}
+          />
+        )}
+
+        {itemHearts.map((h) => (
+          <Animated.View
+            key={h.id}
+            pointerEvents="none"
+            style={[
+              styles.floatingHeart,
+              {
+                left: h.x - 44,
+                top: h.y - 44,
+                opacity: h.anim.interpolate({
+                  inputRange: [0, 0.65, 1],
+                  outputRange: [1, 1, 0],
+                }),
+                transform: [
+                  {
+                    translateY: h.anim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -180],
+                    }),
+                  },
+                  {
+                    scale: h.anim.interpolate({
+                      inputRange: [0, 0.15, 0.4, 1],
+                      outputRange: [0.7, 1.25, 1, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}>
+            <IconSymbol name="heart.fill" size={88} color={Brand.accent} />
+          </Animated.View>
+        ))}
 
         <View style={styles.bottomOverlay}>
           <ThemedText style={styles.videoTitle}>{video.title}</ThemedText>
@@ -194,7 +401,7 @@ export default function FeedScreen() {
           <ThemedText style={styles.creatorName}>by {project.creatorName}</ThemedText>
 
           <View style={styles.progressSection}>
-            <ProgressBar progress={progress} height={4} />
+            <ProgressBar progress={progress} height={5} fillColor={Brand.secondary} trackColor="rgba(255,255,255,0.18)" />
             <ThemedText style={styles.progressText}>
               {project.raisedCredits.toLocaleString()} / {project.goalCredits.toLocaleString()} credits
             </ThemedText>
@@ -227,9 +434,9 @@ export default function FeedScreen() {
             <IconSymbol
               name="hand.thumbsup.fill"
               size={28}
-              color={interaction.liked ? '#22c55e' : '#fff'}
+              color={interaction.liked ? Brand.secondary : '#fff'}
             />
-            <ThemedText style={styles.sideLabel}>Like</ThemedText>
+            <ThemedText style={styles.sideLabel}>{item.likeCount}</ThemedText>
           </Pressable>
 
           <Pressable
@@ -238,9 +445,9 @@ export default function FeedScreen() {
             <IconSymbol
               name="hand.thumbsdown.fill"
               size={28}
-              color={interaction.disliked ? '#ef4444' : '#fff'}
+              color={interaction.disliked ? Brand.error : '#fff'}
             />
-            <ThemedText style={styles.sideLabel}>Dislike</ThemedText>
+            <ThemedText style={styles.sideLabel}>{item.dislikeCount}</ThemedText>
           </Pressable>
 
           <Pressable
@@ -248,7 +455,11 @@ export default function FeedScreen() {
             onPress={() =>
               router.push({ pathname: '/donate', params: { projectId: project.id } })
             }>
-            <IconSymbol name="heart.fill" size={28} color="#fff" />
+            <IconSymbol
+              name={alreadyBacked ? 'heart.fill' : 'heart'}
+              size={28}
+              color={alreadyBacked ? Brand.accent : '#fff'}
+            />
             <ThemedText style={styles.sideLabel}>{project.backerCount}</ThemedText>
           </Pressable>
 
@@ -282,9 +493,9 @@ export default function FeedScreen() {
       {containerHeight > 0 && feedItems !== null && (
         <FlatList
           ref={flatListRef}
-          data={feedItems}
+          data={cycledItems}
           renderItem={renderItem}
-          keyExtractor={(item) => item.video.id}
+          keyExtractor={(item) => item.cycleKey}
           showsVerticalScrollIndicator={false}
           pagingEnabled
           getItemLayout={(_, index) => ({
@@ -294,6 +505,12 @@ export default function FeedScreen() {
           })}
           viewabilityConfig={viewabilityConfigRef.current}
           onViewableItemsChanged={onViewableItemsChangedRef.current}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={2}
+          initialNumToRender={3}
+          maxToRenderPerBatch={2}
+          windowSize={5}
+          removeClippedSubviews={false}
         />
       )}
 
@@ -419,37 +636,51 @@ const styles = StyleSheet.create({
     paddingRight: 70,
     gap: 4,
   },
-  videoTitle: { color: '#fff', fontSize: 13, opacity: 0.7 },
-  projectTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  creatorName: { color: '#fff', fontSize: 14, opacity: 0.8 },
-  progressSection: { marginTop: 8, gap: 4 },
-  progressText: { color: '#fff', fontSize: 12, opacity: 0.7 },
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  videoTitle: { color: '#fff', fontSize: 13, opacity: 0.7, fontFamily: Fonts.sans },
+  projectTitle: { color: '#fff', fontSize: 24, fontWeight: '700', fontFamily: Fonts.displayBold, letterSpacing: -0.4 },
+  creatorName: { color: '#fff', fontSize: 14, opacity: 0.85, fontFamily: Fonts.sans },
+  progressSection: { marginTop: 10, gap: 6 },
+  progressText: { color: '#fff', fontSize: 12, opacity: 0.8, fontFamily: Fonts.sansMedium },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   donateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#e11d48',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    backgroundColor: Brand.accent,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 999,
+    shadowColor: Brand.accent,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  donateText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  donateText: { color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: Fonts.displayBold, letterSpacing: 0.2 },
+  floatingHeart: {
+    position: 'absolute',
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   detailButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
-  detailText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  detailText: { color: '#fff', fontWeight: '600', fontSize: 14, fontFamily: Fonts.sansMedium },
   sideBar: {
     position: 'absolute',
     right: 12,
     bottom: 100,
     alignItems: 'center',
-    gap: 20,
+    gap: 12,
   },
   sideButton: { alignItems: 'center', gap: 2 },
   sideLabel: { color: '#fff', fontSize: 12 },
@@ -485,7 +716,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
-  commentsTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  commentsTitle: { color: '#fff', fontSize: 17, fontWeight: '700', fontFamily: Fonts.displayBold, letterSpacing: -0.2 },
   commentsList: { flex: 1, marginVertical: 8 },
   commentRow: {
     flexDirection: 'row',
@@ -522,10 +753,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0a7ea4',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
@@ -9,8 +10,9 @@ import { MockVideoPlayer } from '@/components/mock-video-player';
 import { ProgressBar } from '@/components/progress-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { RewardSkeleton, Skeleton, SkeletonText, VideoTileSkeleton } from '@/components/skeleton';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Project } from '@/data/types';
+import { Project, ProjectVideo } from '@/data/types';
 import * as api from '@/services/api-client';
 
 export default function ProjectDetailScreen() {
@@ -21,6 +23,8 @@ export default function ProjectDetailScreen() {
 
   const fromContext = id ? projects.find((p) => p.id === id) : undefined;
   const [project, setProject] = useState<Project | null>(fromContext ?? null);
+  const [playingVideo, setPlayingVideo] = useState<ProjectVideo | null>(null);
+  const insets = useSafeAreaInsets();
 
   // Stay in sync with context (e.g. after a donation reconciles).
   useEffect(() => {
@@ -45,24 +49,29 @@ export default function ProjectDetailScreen() {
   }
 
   const progress = project.goalCredits > 0 ? project.raisedCredits / project.goalCredits : 0;
+  const moreVideos = project.videos.slice(1);
 
   return (
+    <>
     <ScrollView style={{ flex: 1 }}>
       <ThemedView style={styles.container}>
-        <MockVideoPlayer
-          color={project.videos[0]?.placeholderColor ?? '#333'}
-          height={240}
-          videoUrl={project.videos[0]?.videoUrl}
-          thumbnailUrl={project.videos[0]?.thumbnailUrl}
-          status={project.videos[0]?.status}
-        />
+        <Pressable onPress={() => project.videos[0] && setPlayingVideo(project.videos[0])}>
+          <MockVideoPlayer
+            color={project.videos[0]?.placeholderColor ?? '#333'}
+            height={240}
+            videoUrl={project.videos[0]?.videoUrl}
+            thumbnailUrl={project.videos[0]?.thumbnailUrl}
+            status={project.videos[0]?.status}
+            controls={false}
+          />
+        </Pressable>
 
         <View style={styles.content}>
           <ThemedText type="title">{project.title}</ThemedText>
           <ThemedText style={styles.creator}>by {project.creatorName}</ThemedText>
 
           <View style={styles.progressSection}>
-            <ProgressBar progress={progress} trackColor={textColor + '15'} fillColor="#22c55e" />
+            <ProgressBar progress={progress} trackColor={Brand.primarySoft} fillColor={Brand.primary} height={6} />
             <View style={styles.statsRow}>
               <ThemedText style={styles.stat}>
                 <ThemedText style={styles.statBold}>{project.raisedCredits.toLocaleString()}</ThemedText>
@@ -82,13 +91,13 @@ export default function ProjectDetailScreen() {
               {project.rewards.map((reward) => (
                 <View key={reward.id} style={[styles.rewardCard, { borderColor: textColor + '15' }]}>
                   <View style={styles.rewardHeader}>
-                    <IconSymbol name="gift.fill" size={18} color="#f59e0b" />
+                    <IconSymbol name="gift.fill" size={18} color={Brand.warning} />
                     <ThemedText style={styles.rewardTitle}>{reward.title}</ThemedText>
                   </View>
                   <ThemedText style={styles.rewardDesc}>{reward.description}</ThemedText>
                   {reward.fileName && (
                     <View style={styles.rewardFile}>
-                      <IconSymbol name="arrow.down.circle.fill" size={14} color="#0a7ea4" />
+                      <IconSymbol name="arrow.down.circle.fill" size={14} color={Brand.primary} />
                       <ThemedText style={styles.rewardFileName}>{reward.fileName}</ThemedText>
                     </View>
                   )}
@@ -98,16 +107,23 @@ export default function ProjectDetailScreen() {
             </View>
           )}
 
-          {project.videos.length > 1 && (
+          {moreVideos.length > 0 && (
             <View style={styles.videosSection}>
               <ThemedText type="subtitle">More Videos</ThemedText>
-              {project.videos.slice(1).map((video) => (
-                <View key={video.id} style={styles.videoRow}>
-                  <View style={[styles.videoThumb, { backgroundColor: video.placeholderColor }]}>
-                    <IconSymbol name="play.fill" size={16} color="rgba(255,255,255,0.7)" />
-                  </View>
+              {moreVideos.map((video) => (
+                <Pressable
+                  key={video.id}
+                  style={styles.videoRow}
+                  onPress={() => setPlayingVideo(video)}>
+                  {video.thumbnailUrl ? (
+                    <Image source={{ uri: video.thumbnailUrl }} style={styles.videoThumb} />
+                  ) : (
+                    <View style={[styles.videoThumb, styles.videoThumbFallback, { backgroundColor: video.placeholderColor }]}>
+                      <IconSymbol name="play.fill" size={16} color="rgba(255,255,255,0.7)" />
+                    </View>
+                  )}
                   <ThemedText style={styles.videoTitle}>{video.title}</ThemedText>
-                </View>
+                </Pressable>
               ))}
             </View>
           )}
@@ -121,6 +137,32 @@ export default function ProjectDetailScreen() {
         </View>
       </ThemedView>
     </ScrollView>
+    <Modal
+      visible={playingVideo !== null}
+      animationType="fade"
+      transparent={false}
+      onRequestClose={() => setPlayingVideo(null)}>
+      <View style={styles.fullScreenContainer}>
+        {playingVideo && (
+          <MockVideoPlayer
+            color={playingVideo.placeholderColor}
+            videoUrl={playingVideo.videoUrl}
+            thumbnailUrl={playingVideo.thumbnailUrl}
+            status={playingVideo.status}
+            fullScreen
+            controls={false}
+            loop
+          />
+        )}
+        <Pressable
+          style={[styles.closeButton, { top: insets.top + 12 }]}
+          onPress={() => setPlayingVideo(null)}
+          hitSlop={12}>
+          <IconSymbol name="xmark" size={24} color="#fff" />
+        </Pressable>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -152,7 +194,7 @@ function ProjectDetailSkeleton({ textColor }: { textColor: string }) {
             <VideoTileSkeleton />
             <VideoTileSkeleton />
           </View>
-          <Skeleton height={48} radius={24} style={{ marginTop: 12, backgroundColor: 'rgba(225,29,72,0.18)', borderColor: textColor + '00' }} />
+          <Skeleton height={56} radius={28} style={{ marginTop: 16, backgroundColor: Brand.accentSoft, borderColor: textColor + '00' }} />
         </View>
       </ThemedView>
     </ScrollView>
@@ -171,35 +213,53 @@ const styles = StyleSheet.create({
   rewardsSection: { gap: 8, marginTop: 8 },
   rewardCard: {
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: Radius.md,
+    padding: 14,
     gap: 4,
   },
   rewardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rewardTitle: { fontWeight: '600', fontSize: 15 },
-  rewardDesc: { fontSize: 13, opacity: 0.6 },
+  rewardTitle: { fontFamily: Fonts.displayBold, fontWeight: '700', fontSize: 15, letterSpacing: -0.2 },
+  rewardDesc: { fontFamily: Fonts.sans, fontSize: 13, opacity: 0.6 },
   rewardFile: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  rewardFileName: { fontSize: 12, color: '#0a7ea4' },
-  rewardMin: { fontSize: 12, opacity: 0.4 },
+  rewardFileName: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Brand.primary },
+  rewardMin: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.45 },
   videosSection: { gap: 8, marginTop: 8 },
   videoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   videoThumb: {
     width: 60,
     height: 40,
-    borderRadius: 6,
+    borderRadius: 8,
+  },
+  videoThumbFallback: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  videoTitle: { fontSize: 14 },
+  videoTitle: { fontFamily: Fonts.sansMedium, fontSize: 14 },
   donateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#e11d48',
-    padding: 16,
-    borderRadius: 24,
-    marginTop: 12,
+    backgroundColor: Brand.accent,
+    padding: 18,
+    borderRadius: 999,
+    marginTop: 16,
+    shadowColor: Brand.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  donateText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  donateText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.2 },
+  fullScreenContainer: { flex: 1, backgroundColor: '#000' },
+  closeButton: {
+    position: 'absolute',
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

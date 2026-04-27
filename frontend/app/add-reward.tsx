@@ -6,6 +6,7 @@ import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function AddRewardScreen() {
@@ -93,7 +94,7 @@ export default function AddRewardScreen() {
         onPress={handlePickFile}>
         {fileName ? (
           <View style={styles.fileAttached}>
-            <IconSymbol name="checkmark.circle.fill" size={20} color="#22c55e" />
+            <IconSymbol name="checkmark.circle.fill" size={20} color={Brand.success} />
             <View style={styles.fileInfo}>
               <ThemedText style={styles.fileName}>{fileName}</ThemedText>
               <ThemedText style={styles.fileHint}>Tap to change file</ThemedText>
@@ -104,7 +105,7 @@ export default function AddRewardScreen() {
                 setFileName('');
               }}
               style={styles.removeFile}>
-              <IconSymbol name="xmark" size={16} color="#ef4444" />
+              <IconSymbol name="xmark" size={16} color={Brand.error} />
             </Pressable>
           </View>
         ) : (
@@ -134,28 +135,29 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, gap: 4 },
   label: { marginTop: 16 },
   input: {
+    fontFamily: Fonts.sans,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: Radius.md,
+    padding: 14,
     fontSize: 16,
     marginTop: 6,
   },
   textArea: { height: 80 },
   filePicker: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     marginTop: 6,
     overflow: 'hidden',
   },
   fileEmpty: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 20,
+    paddingVertical: 22,
     gap: 6,
   },
-  filePickerText: { fontSize: 15, opacity: 0.5 },
-  filePickerHint: { fontSize: 12, opacity: 0.3 },
+  filePickerText: { fontFamily: Fonts.sansMedium, fontSize: 15, opacity: 0.6 },
+  filePickerHint: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.4 },
   fileAttached: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,22 +165,27 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   fileInfo: { flex: 1 },
-  fileName: { fontSize: 15, fontWeight: '600' },
-  fileHint: { fontSize: 12, opacity: 0.4 },
+  fileName: { fontFamily: Fonts.sansMedium, fontSize: 15, fontWeight: '600' },
+  fileHint: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.4 },
   removeFile: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: 'rgba(239,68,68,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButton: {
-    backgroundColor: '#f59e0b',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Brand.warning,
+    paddingVertical: 18,
+    borderRadius: Radius.md,
     alignItems: 'center',
     marginTop: 32,
+    shadowColor: Brand.warning,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
-  addText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  addText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.2 },
 });

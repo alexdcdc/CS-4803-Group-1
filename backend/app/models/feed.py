@@ -22,6 +22,8 @@ class FeedItem(BaseModel):
     project: FeedProjectSummary
     interaction: FeedInteraction
     commentCount: int = 0
+    likeCount: int = 0
+    dislikeCount: int = 0
 
 
 class RecordInteractionRequest(BaseModel):

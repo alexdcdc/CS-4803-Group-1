@@ -9,6 +9,7 @@ import { ProgressBar } from '@/components/progress-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { PendingIndicator } from '@/components/pending-indicator';
 import { RewardSkeleton, Skeleton, SkeletonText, VideoTileSkeleton } from '@/components/skeleton';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { isTempId } from '@/utils/optimistic';
 
@@ -49,7 +50,7 @@ export default function CampaignDetailScreen() {
         </View>
 
         <View style={styles.progressRow}>
-          <ProgressBar progress={progress} trackColor={textColor + '15'} fillColor="#22c55e" />
+          <ProgressBar progress={progress} trackColor={Brand.primarySoft} fillColor={Brand.primary} height={6} />
           <ThemedText style={styles.goalText}>
             Goal: {project.goalCredits.toLocaleString()} credits
           </ThemedText>
@@ -68,7 +69,7 @@ export default function CampaignDetailScreen() {
             <ThemedText style={styles.actionText}>Upload Content</ThemedText>
           </Pressable>
           <Pressable
-            style={[styles.actionButton, { backgroundColor: '#f59e0b' }, isProjectPending && styles.actionDisabled]}
+            style={[styles.actionButton, { backgroundColor: Brand.warning, shadowColor: Brand.warning }, isProjectPending && styles.actionDisabled]}
             disabled={isProjectPending}
             onPress={() =>
               router.push({ pathname: '/add-reward', params: { campaignId: project.id } })
@@ -131,14 +132,14 @@ export default function CampaignDetailScreen() {
             return (
               <View key={reward.id} style={[styles.rewardCard, { borderColor: textColor + '15' }]}>
                 <View style={styles.rewardHeader}>
-                  <IconSymbol name="gift.fill" size={16} color="#f59e0b" />
+                  <IconSymbol name="gift.fill" size={16} color={Brand.warning} />
                   <ThemedText style={styles.rewardTitle}>{reward.title}</ThemedText>
                   {isPending ? <PendingIndicator size={10} /> : null}
                 </View>
                 <ThemedText style={styles.rewardDesc}>{reward.description}</ThemedText>
                 {reward.fileName && (
                   <View style={styles.rewardFile}>
-                    <IconSymbol name="arrow.down.circle.fill" size={14} color="#0a7ea4" />
+                    <IconSymbol name="arrow.down.circle.fill" size={14} color={Brand.primary} />
                     <ThemedText style={styles.rewardFileName}>{reward.fileName}</ThemedText>
                   </View>
                 )}
@@ -196,17 +197,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, gap: 16 },
   statsCard: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(34,197,94,0.08)',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: Brand.primarySoft,
+    borderRadius: Radius.lg,
+    padding: 18,
   },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 22, fontWeight: 'bold' },
-  statLabel: { fontSize: 12, opacity: 0.5, marginTop: 2 },
-  divider: { width: 1, backgroundColor: 'rgba(128,128,128,0.2)' },
-  progressRow: { gap: 4 },
-  goalText: { fontSize: 13, opacity: 0.5 },
-  description: { fontSize: 15, lineHeight: 22, opacity: 0.7 },
+  statValue: { fontFamily: Fonts.displayBold, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  statLabel: { fontFamily: Fonts.sansMedium, fontSize: 12, opacity: 0.6, marginTop: 2 },
+  divider: { width: 1, backgroundColor: 'rgba(109,94,249,0.25)' },
+  progressRow: { gap: 6 },
+  goalText: { fontFamily: Fonts.sans, fontSize: 13, opacity: 0.55 },
+  description: { fontFamily: Fonts.sans, fontSize: 15, lineHeight: 22, opacity: 0.75 },
   actionRow: { flexDirection: 'row', gap: 10 },
   actionButton: {
     flex: 1,
@@ -214,51 +215,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#0a7ea4',
+    backgroundColor: Brand.primary,
     padding: 14,
-    borderRadius: 10,
+    borderRadius: Radius.md,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 4,
   },
   actionDisabled: { opacity: 0.5 },
-  actionText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  actionText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 14, letterSpacing: 0.2 },
   pendingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(10,126,164,0.08)',
-    paddingVertical: 8,
+    backgroundColor: Brand.primarySoft,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
-  pendingText: { fontSize: 13, opacity: 0.7 },
+  pendingText: { fontFamily: Fonts.sans, fontSize: 13, opacity: 0.75 },
   sectionTitle: { marginTop: 8 },
-  empty: { opacity: 0.4, fontSize: 14 },
+  empty: { fontFamily: Fonts.sans, opacity: 0.45, fontSize: 14 },
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(128,128,128,0.15)',
   },
   contentThumb: {
     width: 60,
     height: 40,
-    borderRadius: 6,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  contentTitle: { fontSize: 14 },
-  statusText: { fontSize: 12, opacity: 0.5, marginTop: 2, textTransform: 'capitalize' },
+  contentTitle: { fontFamily: Fonts.sansMedium, fontSize: 14 },
+  statusText: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.55, marginTop: 2, textTransform: 'capitalize' },
   rewardCard: {
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: Radius.md,
+    padding: 14,
     gap: 4,
   },
   rewardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rewardTitle: { fontWeight: '600', fontSize: 14, flex: 1 },
-  rewardDesc: { fontSize: 13, opacity: 0.6 },
+  rewardTitle: { fontFamily: Fonts.displayBold, fontWeight: '700', fontSize: 14, flex: 1 },
+  rewardDesc: { fontFamily: Fonts.sans, fontSize: 13, opacity: 0.65 },
   rewardFile: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  rewardFileName: { fontSize: 12, color: '#0a7ea4' },
-  rewardMin: { fontSize: 12, opacity: 0.4 },
+  rewardFileName: { fontFamily: Fonts.sansMedium, fontSize: 12, color: Brand.primary },
+  rewardMin: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.45 },
 });

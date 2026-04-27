@@ -1,5 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
+import { Brand } from '@/constants/theme';
+
 interface ProgressBarProps {
   progress: number; // 0–1
   height?: number;
@@ -11,7 +13,7 @@ export function ProgressBar({
   progress,
   height = 6,
   trackColor = 'rgba(255,255,255,0.2)',
-  fillColor = '#22c55e',
+  fillColor = Brand.secondary,
 }: ProgressBarProps) {
   const clamped = Math.min(1, Math.max(0, progress));
   return (

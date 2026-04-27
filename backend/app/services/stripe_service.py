@@ -4,12 +4,12 @@ from fastapi import HTTPException, status
 
 from app.config import settings
 
-CREDIT_PACKAGES: dict[int, int] = {
-    100: 100,
-    500: 500,
-    1000: 1000,
-    2500: 2500,
-}
+MIN_CREDIT_PURCHASE = 50
+MAX_CREDIT_PURCHASE = 100_000
+
+
+def credits_to_cents(credits: int) -> int:
+    return credits
 
 
 stripe.api_key = settings.stripe_secret_key
@@ -39,9 +39,12 @@ def create_checkout_session(
     return_url: str | None = None,
 ) -> stripe.checkout.Session:
     require_stripe_config()
-    amount_cents = CREDIT_PACKAGES.get(credits)
-    if amount_cents is None:
-        raise HTTPException(status_code=400, detail="Unsupported credit package")
+    if credits < MIN_CREDIT_PURCHASE or credits > MAX_CREDIT_PURCHASE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Credit amount must be between {MIN_CREDIT_PURCHASE} and {MAX_CREDIT_PURCHASE}",
+        )
+    amount_cents = credits_to_cents(credits)
 
     base_return_url = (return_url or f"{settings.web_return_url.rstrip('/')}/recharge").rstrip("/")
     separator = "&" if "?" in base_return_url else "?"

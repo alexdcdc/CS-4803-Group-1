@@ -7,6 +7,7 @@ import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import * as api from '@/services/api-client';
 
@@ -114,7 +115,7 @@ export default function UploadContentScreen() {
 
       {phase === 'done' ? (
         <View style={styles.successRow}>
-          <IconSymbol name="checkmark.circle.fill" size={24} color="#22c55e" />
+          <IconSymbol name="checkmark.circle.fill" size={24} color={Brand.success} />
           <ThemedText style={styles.successText}>Uploaded successfully!</ThemedText>
         </View>
       ) : (
@@ -142,19 +143,21 @@ const styles = StyleSheet.create({
     height: 200,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: 'rgba(128,128,128,0.3)',
-    borderRadius: 12,
+    borderColor: 'rgba(109,94,249,0.35)',
+    borderRadius: Radius.lg,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     overflow: 'hidden',
+    backgroundColor: Brand.primarySoft,
   },
   preview: { ...StyleSheet.absoluteFillObject, resizeMode: 'cover' },
-  pickerText: { fontSize: 16, opacity: 0.5 },
+  pickerText: { fontFamily: Fonts.sansMedium, fontSize: 16, opacity: 0.6 },
   pickerHint: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#fff',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15,23,42,0.6)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -162,9 +165,10 @@ const styles = StyleSheet.create({
   },
   label: { marginTop: 24 },
   input: {
+    fontFamily: Fonts.sans,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: Radius.md,
+    padding: 14,
     fontSize: 16,
     marginTop: 6,
   },
@@ -173,12 +177,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Brand.primary,
+    paddingVertical: 18,
+    borderRadius: Radius.md,
     marginTop: 32,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
-  uploadText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  uploadText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.2 },
   successRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -186,6 +195,6 @@ const styles = StyleSheet.create({
     marginTop: 32,
     justifyContent: 'center',
   },
-  successText: { color: '#22c55e', fontWeight: '600', fontSize: 16 },
-  error: { color: '#ef4444', fontSize: 13, marginTop: 12 },
+  successText: { fontFamily: Fonts.displayBold, color: Brand.success, fontWeight: '700', fontSize: 16 },
+  error: { color: Brand.error, fontSize: 13, marginTop: 12 },
 });

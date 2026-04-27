@@ -5,11 +5,15 @@ import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { UserRole } from '@/data/types';
 
 export default function OnboardingScreen() {
   const { setUserRole } = useApp();
   const router = useRouter();
+  const surface = useThemeColor({}, 'surface');
+  const border = useThemeColor({}, 'border');
 
   const handleSelect = async (role: UserRole) => {
     await setUserRole(role);
@@ -26,9 +30,15 @@ export default function OnboardingScreen() {
       </ThemedText>
 
       <View style={styles.cards}>
-        <Pressable style={styles.card} onPress={() => handleSelect('backer')}>
-          <View style={[styles.iconCircle, { backgroundColor: 'rgba(59,130,246,0.15)' }]}>
-            <IconSymbol name="heart.fill" size={36} color="#3b82f6" />
+        <Pressable
+          style={({ pressed }) => [
+            styles.card,
+            { backgroundColor: surface, borderColor: border },
+            pressed && styles.cardPressed,
+          ]}
+          onPress={() => handleSelect('backer')}>
+          <View style={[styles.iconCircle, { backgroundColor: Brand.accent }]}>
+            <IconSymbol name="heart.fill" size={32} color="#fff" />
           </View>
           <ThemedText style={styles.cardTitle}>{"I'm a Backer"}</ThemedText>
           <ThemedText style={styles.cardDesc}>
@@ -36,9 +46,15 @@ export default function OnboardingScreen() {
           </ThemedText>
         </Pressable>
 
-        <Pressable style={styles.card} onPress={() => handleSelect('creator')}>
-          <View style={[styles.iconCircle, { backgroundColor: 'rgba(34,197,94,0.15)' }]}>
-            <IconSymbol name="paintbrush.fill" size={36} color="#22c55e" />
+        <Pressable
+          style={({ pressed }) => [
+            styles.card,
+            { backgroundColor: surface, borderColor: border },
+            pressed && styles.cardPressed,
+          ]}
+          onPress={() => handleSelect('creator')}>
+          <View style={[styles.iconCircle, { backgroundColor: Brand.primary }]}>
+            <IconSymbol name="paintbrush.fill" size={32} color="#fff" />
           </View>
           <ThemedText style={styles.cardTitle}>{"I'm a Creator"}</ThemedText>
           <ThemedText style={styles.cardDesc}>
@@ -62,46 +78,54 @@ const styles = StyleSheet.create({
   },
   title: {
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   subtitle: {
+    fontFamily: Fonts.sans,
     textAlign: 'center',
     opacity: 0.6,
-    marginBottom: 32,
+    marginBottom: 36,
     fontSize: 16,
   },
   cards: {
-    gap: 16,
+    gap: 14,
   },
   card: {
     alignItems: 'center',
-    padding: 24,
-    borderRadius: 16,
+    padding: 26,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.2)',
-    gap: 8,
+    gap: 10,
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 76,
+    height: 76,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   cardTitle: {
+    fontFamily: Fonts.displayBold,
     fontSize: 20,
     fontWeight: '700',
+    letterSpacing: -0.3,
   },
   cardDesc: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
-    opacity: 0.6,
+    opacity: 0.65,
     textAlign: 'center',
   },
   hint: {
+    fontFamily: Fonts.sans,
     textAlign: 'center',
-    opacity: 0.4,
+    opacity: 0.45,
     fontSize: 13,
-    marginTop: 24,
+    marginTop: 28,
   },
 });

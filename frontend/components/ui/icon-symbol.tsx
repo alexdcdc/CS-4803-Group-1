@@ -27,6 +27,7 @@ const MAPPING = {
   'gift.fill': 'card-giftcard',
   'dollarsign.circle.fill': 'monetization-on',
   'heart.fill': 'favorite',
+  'heart': 'favorite-border',
   'xmark': 'close',
   'checkmark.circle.fill': 'check-circle',
   'arrow.down.circle.fill': 'file-download',

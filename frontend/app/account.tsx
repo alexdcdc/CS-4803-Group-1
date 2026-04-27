@@ -5,17 +5,22 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
   View,
 } from 'react-native';
 import { useApp } from '@/context/app-context';
+import { useSettings } from '@/context/settings-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function AccountScreen() {
   const { user, logout, updateAccount, deleteAccount, toggleUserRole } = useApp();
+  const { doubleTapEnabled, autoDonateAmount, setDoubleTapEnabled, setAutoDonateAmount } =
+    useSettings();
   const textColor = useThemeColor({}, 'text');
 
   const [name, setName] = useState(user?.name ?? '');
@@ -25,6 +30,17 @@ export default function AccountScreen() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [autoDonateInput, setAutoDonateInput] = useState(String(autoDonateAmount));
+
+  const commitAutoDonateAmount = () => {
+    const parsed = parseInt(autoDonateInput, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      setAutoDonateInput(String(autoDonateAmount));
+      return;
+    }
+    setAutoDonateAmount(parsed);
+    setAutoDonateInput(String(parsed));
+  };
 
   const handleSave = async () => {
     setError('');
@@ -131,6 +147,51 @@ export default function AccountScreen() {
           </Pressable>
         </View>
 
+        {/* Donation Settings Section */}
+        <View style={styles.section}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>Donation Settings</ThemedText>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingTextWrap}>
+              <ThemedText style={styles.settingLabel}>Double-tap to donate</ThemedText>
+              <ThemedText style={styles.settingDesc}>
+                Double-tap a video in the feed to instantly donate
+              </ThemedText>
+            </View>
+            <Switch
+              value={doubleTapEnabled}
+              onValueChange={setDoubleTapEnabled}
+              trackColor={{ true: Brand.primary, false: 'rgba(128,128,128,0.4)' }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          <View style={[styles.settingRow, !doubleTapEnabled && styles.settingDisabled]}>
+            <View style={styles.settingTextWrap}>
+              <ThemedText style={styles.settingLabel}>Auto-donate amount</ThemedText>
+              <ThemedText style={styles.settingDesc}>
+                Credits sent on each double-tap donation
+              </ThemedText>
+            </View>
+            <View style={styles.amountInputRow}>
+              <TextInput
+                style={[styles.amountInput, { color: textColor }]}
+                value={autoDonateInput}
+                onChangeText={setAutoDonateInput}
+                onBlur={commitAutoDonateAmount}
+                onSubmitEditing={commitAutoDonateAmount}
+                keyboardType="number-pad"
+                placeholder="10"
+                placeholderTextColor="rgba(128,128,128,0.5)"
+                editable={doubleTapEnabled}
+                returnKeyType="done"
+                maxLength={6}
+              />
+              <ThemedText style={styles.amountUnit}>credits</ThemedText>
+            </View>
+          </View>
+        </View>
+
         {/* Change Password Section */}
         <View style={styles.section}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Change Password</ThemedText>
@@ -183,12 +244,12 @@ export default function AccountScreen() {
         {/* Danger Zone */}
         <View style={styles.dangerZone}>
           <Pressable style={styles.logoutButton} onPress={handleLogout}>
-            <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color="#ef4444" />
+            <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color={Brand.error} />
             <ThemedText style={styles.logoutText}>Log Out</ThemedText>
           </Pressable>
 
           <Pressable style={styles.deleteButton} onPress={handleDelete}>
-            <IconSymbol name="trash.fill" size={20} color="#ef4444" />
+            <IconSymbol name="trash.fill" size={20} color={Brand.error} />
             <ThemedText style={styles.deleteText}>Delete Account</ThemedText>
           </Pressable>
         </View>
@@ -252,32 +313,83 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     marginTop: 2,
   },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.25)',
+    borderRadius: 12,
+  },
+  settingDisabled: {
+    opacity: 0.5,
+  },
+  settingTextWrap: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  settingDesc: {
+    fontSize: 13,
+    opacity: 0.5,
+    marginTop: 2,
+  },
+  amountInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  amountInput: {
+    width: 80,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.25)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 16,
+    textAlign: 'right',
+  },
+  amountUnit: {
+    fontSize: 13,
+    opacity: 0.6,
+  },
   success: {
-    color: '#22c55e',
+    color: Brand.success,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 8,
   },
   error: {
-    color: '#ef4444',
+    color: Brand.error,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 8,
   },
   saveButton: {
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Brand.primary,
+    paddingVertical: 16,
+    borderRadius: Radius.md,
     alignItems: 'center',
     marginBottom: 32,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   saveText: {
+    fontFamily: Fonts.displayBold,
     color: '#fff',
     fontWeight: '700',
     fontSize: 17,
+    letterSpacing: 0.2,
   },
   dangerZone: {
     gap: 12,
@@ -291,12 +403,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: Brand.error,
   },
   logoutText: {
-    color: '#ef4444',
+    fontFamily: Fonts.sansMedium,
+    color: Brand.error,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -306,11 +419,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     backgroundColor: 'rgba(239,68,68,0.1)',
   },
   deleteText: {
-    color: '#ef4444',
+    fontFamily: Fonts.sansMedium,
+    color: Brand.error,
     fontWeight: '600',
     fontSize: 16,
   },

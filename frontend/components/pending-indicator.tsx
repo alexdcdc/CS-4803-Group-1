@@ -1,12 +1,14 @@
 import { ActivityIndicator, StyleSheet, View, ViewStyle } from 'react-native';
 
+import { Brand } from '@/constants/theme';
+
 interface PendingIndicatorProps {
   size?: number;
   color?: string;
   style?: ViewStyle | ViewStyle[];
 }
 
-export function PendingIndicator({ size = 14, color = '#0a7ea4', style }: PendingIndicatorProps) {
+export function PendingIndicator({ size = 14, color = Brand.primary, style }: PendingIndicatorProps) {
   return (
     <View style={[styles.host, { width: size + 8, height: size + 8, borderRadius: (size + 8) / 2 }, style]}>
       <ActivityIndicator size="small" color={color} />

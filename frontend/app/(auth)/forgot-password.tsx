@@ -6,6 +6,7 @@ import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function ForgotPasswordScreen() {
@@ -39,7 +40,7 @@ export default function ForgotPasswordScreen() {
       <ThemedView style={styles.container}>
         <View style={styles.successContainer}>
           <View style={styles.successCircle}>
-            <IconSymbol name="checkmark.circle.fill" size={48} color="#22c55e" />
+            <IconSymbol name="checkmark.circle.fill" size={48} color={Brand.success} />
           </View>
           <ThemedText type="title" style={styles.successTitle}>
             Check Your Email
@@ -156,23 +157,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: {
-    color: '#ef4444',
+    color: Brand.error,
     fontSize: 14,
     textAlign: 'center',
   },
   submitButton: {
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Brand.primary,
+    paddingVertical: 18,
+    borderRadius: Radius.md,
     alignItems: 'center',
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
   submitDisabled: {
     opacity: 0.6,
   },
   submitText: {
+    fontFamily: Fonts.displayBold,
     color: '#fff',
     fontWeight: '700',
     fontSize: 17,
+    letterSpacing: 0.2,
   },
   footer: {
     flexDirection: 'row',
@@ -180,11 +188,12 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   footerText: {
-    opacity: 0.5,
+    opacity: 0.6,
     fontSize: 15,
   },
   footerLink: {
-    color: '#0a7ea4',
+    fontFamily: Fonts.sansMedium,
+    color: Brand.primary,
     fontWeight: '600',
     fontSize: 15,
   },

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function CreateCampaignScreen() {
@@ -83,19 +84,25 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, gap: 4 },
   label: { marginTop: 16 },
   input: {
+    fontFamily: Fonts.sans,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: Radius.md,
+    padding: 14,
     fontSize: 16,
     marginTop: 6,
   },
   textArea: { height: 100 },
   createButton: {
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Brand.primary,
+    paddingVertical: 18,
+    borderRadius: Radius.md,
     alignItems: 'center',
     marginTop: 32,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
-  createText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  createText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.2 },
 });

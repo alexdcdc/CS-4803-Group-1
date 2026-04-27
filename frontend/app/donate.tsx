@@ -1,27 +1,55 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+  useColorScheme,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Skeleton, SkeletonText } from '@/components/skeleton';
+import { Brand, Colors, Fonts, Radius } from '@/constants/theme';
 import { Project, Reward } from '@/data/types';
 import * as api from '@/services/api-client';
 
 const AMOUNTS = [10, 25, 50, 100];
+const MIN_DONATION = 1;
 
 export default function DonateScreen() {
   const { projectId } = useLocalSearchParams<{ projectId: string }>();
   const { user, projects, donate } = useApp();
   const router = useRouter();
 
+  const scheme = useColorScheme() ?? 'light';
+  const palette = Colors[scheme];
+
   const fromContext = projectId ? projects.find((p) => p.id === projectId) : undefined;
   const [project, setProject] = useState<Project | null>(fromContext ?? null);
   const [selected, setSelected] = useState(25);
+  const [customMode, setCustomMode] = useState(false);
+  const [customInput, setCustomInput] = useState('');
   const [view, setView] = useState<'pick' | 'success'>('pick');
   const [predictedUnlocks, setPredictedUnlocks] = useState<Reward[]>([]);
+
+  const balance = user?.creditBalance ?? 0;
+
+  const customCredits = useMemo(() => {
+    const parsed = parseInt(customInput, 10);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }, [customInput]);
+
+  const customValid =
+    customMode && Number.isFinite(customCredits) && customCredits >= MIN_DONATION && customCredits <= balance;
+
+  const amount = customMode ? (customValid ? customCredits : 0) : selected;
 
   // Re-sync from context (e.g. after donations reconcile reward list).
   useEffect(() => {
@@ -40,21 +68,28 @@ export default function DonateScreen() {
     };
   }, [projectId, fromContext]);
 
-  const insufficient = (user?.creditBalance ?? 0) < selected;
+  const insufficient = amount > 0 && balance < amount;
+  const priorBackingTotal = useMemo(() => {
+    if (!project || !user) return 0;
+    return user.transactions
+      .filter((t) => t.type === 'donation' && t.label.includes(project.title))
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  }, [project, user]);
+  const cantSubmit = amount <= 0 || insufficient;
 
   const handleDonate = async () => {
-    if (!projectId || !project || insufficient) return;
+    if (!projectId || !project || cantSubmit) return;
 
     // Predict the rewards the user will unlock so we can show them on the
     // success screen immediately. The server is authoritative; on response
     // we replace this with the real list.
-    const predicted = project.rewards.filter((r) => r.minDonation <= selected);
+    const predicted = project.rewards.filter((r) => r.minDonation <= amount);
     setPredictedUnlocks(predicted);
     setView('success');
 
     // Fire and forget: context applies optimistic balance/raisedCredits and
     // reverts on failure (with toast).
-    donate(projectId, selected).then((result) => {
+    donate(projectId, amount).then((result) => {
       if (result.success && result.rewardsUnlocked.length > 0) {
         setPredictedUnlocks(result.rewardsUnlocked);
       }
@@ -63,13 +98,18 @@ export default function DonateScreen() {
 
   if (view === 'success') {
     return (
-      <ThemedView style={styles.container}>
-        <IconSymbol name="checkmark.circle.fill" size={64} color="#22c55e" />
+      <ThemedView style={styles.flex}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}>
+        <View style={styles.successIcon}>
+          <IconSymbol name="checkmark.circle.fill" size={64} color={Brand.success} />
+        </View>
         <ThemedText type="title" style={styles.successTitle}>
           Thank you!
         </ThemedText>
         <ThemedText style={styles.successSub}>
-          You donated {selected} credits to {project?.title ?? 'this project'}
+          You donated {amount} credits to {project?.title ?? 'this project'}
         </ThemedText>
 
         {predictedUnlocks.length > 0 && (
@@ -79,7 +119,7 @@ export default function DonateScreen() {
             </ThemedText>
             {predictedUnlocks.map((r) => (
               <View key={r.id} style={styles.rewardItem}>
-                <IconSymbol name="gift.fill" size={18} color="#f59e0b" />
+                <IconSymbol name="gift.fill" size={18} color={Brand.warning} />
                 <View style={{ flex: 1 }}>
                   <ThemedText style={styles.rewardName}>{r.title}</ThemedText>
                   <ThemedText style={styles.rewardDesc}>{r.description}</ThemedText>
@@ -90,7 +130,7 @@ export default function DonateScreen() {
                 <Pressable
                   style={styles.downloadBtn}
                   onPress={() => alert(`Downloading ${r.fileName ?? r.title}...`)}>
-                  <IconSymbol name="arrow.down.circle.fill" size={22} color="#0a7ea4" />
+                  <IconSymbol name="arrow.down.circle.fill" size={22} color={Brand.primary} />
                 </Pressable>
               </View>
             ))}
@@ -100,13 +140,23 @@ export default function DonateScreen() {
         <Pressable style={styles.doneButton} onPress={() => router.back()}>
           <ThemedText style={styles.doneText}>Done</ThemedText>
         </Pressable>
+        </ScrollView>
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <IconSymbol name="heart.fill" size={48} color="#e11d48" />
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ThemedView style={styles.flex}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+      <View style={styles.heartCircle}>
+        <IconSymbol name="heart.fill" size={36} color="#fff" />
+      </View>
       <ThemedText type="title" style={{ marginTop: 12 }}>
         Back this project
       </ThemedText>
@@ -123,30 +173,88 @@ export default function DonateScreen() {
         </ThemedText>
       </View>
 
+      {priorBackingTotal > 0 && (
+        <View style={styles.priorBackingNote}>
+          <IconSymbol name="heart.fill" size={16} color={Brand.accent} />
+          <ThemedText style={styles.priorBackingText}>
+            You&apos;ve already backed {priorBackingTotal.toLocaleString()} credits to this project
+          </ThemedText>
+        </View>
+      )}
+
       <ThemedText type="subtitle" style={styles.selectLabel}>
         Select amount
       </ThemedText>
 
       <View style={styles.amountRow}>
-        {AMOUNTS.map((amt) => (
-          <Pressable
-            key={amt}
-            style={[styles.amountBtn, selected === amt && styles.amountBtnSelected]}
-            onPress={() => setSelected(amt)}>
-            <ThemedText
-              style={[styles.amountText, selected === amt && styles.amountTextSelected]}>
-              {amt}
-            </ThemedText>
-          </Pressable>
-        ))}
+        {AMOUNTS.map((amt) => {
+          const isSelected = !customMode && selected === amt;
+          return (
+            <Pressable
+              key={amt}
+              style={[styles.amountBtn, isSelected && styles.amountBtnSelected]}
+              onPress={() => {
+                setCustomMode(false);
+                setSelected(amt);
+              }}>
+              <ThemedText style={[styles.amountText, isSelected && styles.amountTextSelected]}>
+                {amt}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+        <Pressable
+          style={[styles.amountBtn, customMode && styles.amountBtnSelected]}
+          onPress={() => setCustomMode(true)}>
+          <IconSymbol
+            name="pencil"
+            size={22}
+            color={customMode ? Brand.accent : palette.icon}
+          />
+          <ThemedText
+            style={[styles.amountCustomLabel, customMode && styles.amountTextSelected]}>
+            Custom
+          </ThemedText>
+        </Pressable>
       </View>
 
+      {customMode && (
+        <View style={styles.customRow}>
+          <TextInput
+            value={customInput}
+            onChangeText={(t) => setCustomInput(t.replace(/[^0-9]/g, ''))}
+            placeholder="Enter credits"
+            placeholderTextColor={palette.textMuted}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            autoFocus
+            style={[
+              styles.customInput,
+              {
+                color: palette.text,
+                backgroundColor: palette.surface,
+                borderColor: customValid ? Brand.accent : palette.border,
+              },
+            ]}
+          />
+          <ThemedText style={styles.customHint}>
+            {customInput.length === 0
+              ? `You have ${balance.toLocaleString()} credits available`
+              : !Number.isFinite(customCredits) || customCredits < MIN_DONATION
+                ? `Minimum donation is ${MIN_DONATION} credit`
+                : customCredits > balance
+                  ? `Only ${balance.toLocaleString()} credits available`
+                  : `Donating ${customCredits.toLocaleString()} credits`}
+          </ThemedText>
+        </View>
+      )}
+
       {project ? (
-        project.rewards.filter((r) => r.minDonation <= selected).length > 0 && (
+        amount > 0 && project.rewards.filter((r) => r.minDonation <= amount).length > 0 && (
           <View style={styles.rewardPreview}>
             <ThemedText style={styles.rewardPreviewTitle}>{"You'll unlock:"}</ThemedText>
             {project.rewards
-              .filter((r) => r.minDonation <= selected)
+              .filter((r) => r.minDonation <= amount)
               .map((r) => (
                 <ThemedText key={r.id} style={styles.rewardPreviewItem}>
                   • {r.title}
@@ -168,92 +276,174 @@ export default function DonateScreen() {
       )}
 
       <Pressable
-        style={[styles.confirmButton, (insufficient || !project) && { opacity: 0.5 }]}
+        style={[styles.confirmButton, (cantSubmit || !project) && { opacity: 0.5 }]}
         onPress={handleDonate}
-        disabled={insufficient || !project}>
-        <ThemedText style={styles.confirmText}>{`Donate ${selected} Credits`}</ThemedText>
+        disabled={cantSubmit || !project}>
+        <ThemedText style={styles.confirmText}>
+          {amount > 0 ? `Donate ${amount.toLocaleString()} Credits` : 'Enter an amount'}
+        </ThemedText>
       </Pressable>
-    </ThemedView>
+        </ScrollView>
+      </ThemedView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: {
-    flex: 1,
     alignItems: 'center',
     paddingTop: 40,
     paddingHorizontal: 24,
+    paddingBottom: 48,
   },
-  projectName: { fontSize: 16, opacity: 0.6, marginTop: 4 },
+  heartCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 28,
+    backgroundColor: Brand.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Brand.accent,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 22,
+    elevation: 10,
+  },
+  successIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(16,211,156,0.14)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  projectName: { fontFamily: Fonts.sans, fontSize: 16, opacity: 0.65, marginTop: 6 },
   balanceRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 24,
+    marginTop: 28,
     alignItems: 'center',
   },
-  balanceLabel: { fontSize: 15, opacity: 0.6 },
-  balanceValue: { fontSize: 15, fontWeight: '700' },
-  selectLabel: { marginTop: 24, marginBottom: 12 },
-  amountRow: { flexDirection: 'row', gap: 12 },
+  balanceLabel: { fontFamily: Fonts.sans, fontSize: 15, opacity: 0.6 },
+  balanceValue: { fontFamily: Fonts.displayBold, fontSize: 15, fontWeight: '700' },
+  priorBackingNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: Radius.md,
+    backgroundColor: Brand.accentSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(255,79,163,0.3)',
+    width: '100%',
+  },
+  priorBackingText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    flex: 1,
+  },
+  selectLabel: { marginTop: 26, marginBottom: 14, alignSelf: 'flex-start' },
+  amountRow: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+  },
   amountBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: Radius.md,
     borderWidth: 2,
-    borderColor: 'rgba(128,128,128,0.3)',
+    borderColor: 'rgba(128,128,128,0.25)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   amountBtnSelected: {
-    borderColor: '#e11d48',
-    backgroundColor: 'rgba(225,29,72,0.1)',
+    borderColor: Brand.accent,
+    backgroundColor: Brand.accentSoft,
   },
-  amountText: { fontSize: 18, fontWeight: '600' },
-  amountTextSelected: { color: '#e11d48' },
-  error: { color: '#ef4444', marginTop: 12 },
-  confirmButton: {
-    backgroundColor: '#e11d48',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 24,
-    marginTop: 24,
+  amountText: { fontFamily: Fonts.displayBold, fontSize: 19, fontWeight: '700' },
+  amountCustomLabel: { fontFamily: Fonts.sansMedium, fontSize: 11, marginTop: 2, opacity: 0.7 },
+  amountTextSelected: { color: Brand.accent, opacity: 1 },
+  customRow: {
     width: '100%',
+    marginTop: 18,
+    gap: 8,
     alignItems: 'center',
   },
-  confirmText: { color: '#fff', fontWeight: '700', fontSize: 17 },
-  successTitle: { marginTop: 12 },
-  successSub: { opacity: 0.6, marginTop: 4, textAlign: 'center' },
-  rewardsSection: { marginTop: 24, width: '100%', gap: 8 },
+  customInput: {
+    width: '100%',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: Radius.md,
+    borderWidth: 2,
+    fontFamily: Fonts.displayBold,
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  customHint: { fontFamily: Fonts.sans, fontSize: 13, opacity: 0.6 },
+  error: { color: Brand.error, marginTop: 12 },
+  confirmButton: {
+    backgroundColor: Brand.accent,
+    paddingHorizontal: 32,
+    paddingVertical: 18,
+    borderRadius: 999,
+    marginTop: 28,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: Brand.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  confirmText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.2 },
+  successTitle: { marginTop: 16 },
+  successSub: { fontFamily: Fonts.sans, opacity: 0.65, marginTop: 6, textAlign: 'center' },
+  rewardsSection: { marginTop: 24, width: '100%', gap: 10 },
   rewardsTitle: { marginBottom: 4 },
   rewardItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: 'rgba(245,158,11,0.08)',
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: Brand.warningSoft,
+    padding: 14,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.3)',
   },
-  rewardName: { fontWeight: '600', fontSize: 14 },
-  rewardDesc: { fontSize: 12, opacity: 0.5 },
-  rewardFile: { fontSize: 11, color: '#0a7ea4', marginTop: 2 },
+  rewardName: { fontFamily: Fonts.displayBold, fontWeight: '700', fontSize: 14 },
+  rewardDesc: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.55 },
+  rewardFile: { fontFamily: Fonts.sansMedium, fontSize: 11, color: Brand.primary, marginTop: 2 },
   downloadBtn: { padding: 4 },
   rewardPreview: {
-    marginTop: 16,
+    marginTop: 18,
     width: '100%',
-    backgroundColor: 'rgba(34,197,94,0.08)',
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: Brand.secondarySoft,
+    padding: 14,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(34,211,238,0.3)',
   },
-  rewardPreviewTitle: { fontWeight: '600', marginBottom: 4 },
-  rewardPreviewItem: { fontSize: 14, opacity: 0.7 },
+  rewardPreviewTitle: { fontFamily: Fonts.displayBold, fontWeight: '700', marginBottom: 4, color: Brand.secondary },
+  rewardPreviewItem: { fontFamily: Fonts.sans, fontSize: 14, opacity: 0.8 },
   doneButton: {
-    backgroundColor: '#0a7ea4',
+    backgroundColor: Brand.primary,
     paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 24,
-    marginTop: 24,
+    paddingVertical: 18,
+    borderRadius: 999,
+    marginTop: 28,
     width: '100%',
     alignItems: 'center',
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
-  doneText: { color: '#fff', fontWeight: '700', fontSize: 17 },
+  doneText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.2 },
 });

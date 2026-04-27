@@ -7,8 +7,11 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ProjectCard } from '@/components/project-card';
 import { ProjectCardSkeletonList } from '@/components/skeleton';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Project } from '@/data/types';
+import { getProjectLogo } from '@/data/project-logos';
 
 export default function DiscoverScreen() {
   const { projects, searchProjects, loading } = useApp();
@@ -17,6 +20,8 @@ export default function DiscoverScreen() {
   const [searching, setSearching] = useState(false);
   const router = useRouter();
   const textColor = useThemeColor({}, 'text');
+  const surface = useThemeColor({}, 'surface');
+  const border = useThemeColor({}, 'border');
 
   useEffect(() => {
     if (query.trim().length === 0) {
@@ -43,19 +48,19 @@ export default function DiscoverScreen() {
     [router],
   );
 
-  // Display rule: show search results if we have any (or finished searching),
-  // otherwise show all projects from context. While searching, keep prior
-  // results visible so the list doesn't blank out between keystrokes.
   const data = results ?? projects;
   const showColdStart = !loading ? false : data.length === 0;
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.heading}>
-        Discover
-      </ThemedText>
+      <View style={styles.headerRow}>
+        <ThemedText type="title" style={styles.heading}>
+          Discover
+        </ThemedText>
+      </View>
 
-      <View style={[styles.searchBar, { borderColor: textColor + '30' }]}>
+      <View style={[styles.searchBar, { backgroundColor: surface, borderColor: border }]}>
+        <IconSymbol name="magnifyingglass" size={18} color={Brand.primary} />
         <TextInput
           style={[styles.searchInput, { color: textColor }]}
           placeholder="Search projects or creators..."
@@ -65,7 +70,7 @@ export default function DiscoverScreen() {
           autoCapitalize="none"
           autoCorrect={false}
         />
-        {searching && <ActivityIndicator size="small" />}
+        {searching && <ActivityIndicator size="small" color={Brand.primary} />}
       </View>
 
       {showColdStart ? (
@@ -75,7 +80,11 @@ export default function DiscoverScreen() {
           data={data}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ProjectCard project={item} onPress={() => handlePress(item)} />
+            <ProjectCard
+              project={item}
+              logoUrl={getProjectLogo(item.id)}
+              onPress={() => handlePress(item)}
+            />
           )}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
@@ -91,21 +100,30 @@ export default function DiscoverScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
-  heading: { paddingHorizontal: 16, marginBottom: 12 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 14,
+    gap: 6,
+  },
+  heading: { flexShrink: 1 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
     marginHorizontal: 16,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginBottom: 8,
+    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    marginBottom: 14,
   },
   searchInput: {
     flex: 1,
-    height: 44,
-    fontSize: 16,
+    height: 48,
+    fontSize: 15,
+    fontFamily: Fonts.sans,
   },
-  list: { paddingBottom: 40 },
+  list: { paddingTop: 4, paddingBottom: 40 },
   empty: { textAlign: 'center', marginTop: 40, opacity: 0.5 },
 });

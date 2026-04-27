@@ -10,6 +10,8 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { PendingIndicator } from '@/components/pending-indicator';
 import { EarningsSkeleton, SkeletonText, TransactionRowSkeleton } from '@/components/skeleton';
+import { Brand, Fonts, Radius } from '@/constants/theme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { ConnectStatus, CreatorEarnings, Transaction } from '@/data/types';
 
 export default function WalletScreen() {
@@ -24,6 +26,8 @@ export default function WalletScreen() {
     pending,
   } = useApp();
   const router = useRouter();
+  const surface = useThemeColor({}, 'surface');
+  const border = useThemeColor({}, 'border');
   const ownedCampaigns = projects.filter((p) => p.isOwned);
   const [earnings, setEarnings] = useState<CreatorEarnings | null>(null);
   const [connectStatus, setConnectStatus] = useState<ConnectStatus | null>(null);
@@ -106,13 +110,14 @@ export default function WalletScreen() {
 
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const isPositive = item.amount > 0;
+    const tone = isPositive ? Brand.success : Brand.accent;
     return (
-      <View style={styles.txRow}>
-        <View style={[styles.txIcon, { backgroundColor: isPositive ? '#22c55e20' : '#ef444420' }]}>
+      <View style={[styles.txRow, { borderBottomColor: border }]}>
+        <View style={[styles.txIcon, { backgroundColor: tone + '22' }]}>
           <IconSymbol
             name={item.type === 'recharge' ? 'plus.circle.fill' : item.type === 'payout' ? 'arrow.down.circle.fill' : 'heart.fill'}
             size={18}
-            color={isPositive ? '#22c55e' : '#ef4444'}
+            color={tone}
           />
         </View>
         <View style={styles.txInfo}>
@@ -121,7 +126,7 @@ export default function WalletScreen() {
           </ThemedText>
           <ThemedText style={styles.txDate}>{item.date}</ThemedText>
         </View>
-        <ThemedText style={[styles.txAmount, { color: isPositive ? '#22c55e' : '#ef4444' }]}>
+        <ThemedText style={[styles.txAmount, { color: tone }]}>
           {isPositive ? '+' : ''}{item.amount}
         </ThemedText>
       </View>
@@ -135,9 +140,14 @@ export default function WalletScreen() {
       </ThemedText>
 
       <View style={styles.balanceCard}>
-        <ThemedText style={styles.balanceLabel}>Credit Balance</ThemedText>
+        <View style={styles.balanceTop}>
+          <ThemedText style={styles.balanceLabel}>Credit Balance</ThemedText>
+          <View style={styles.balanceChip}>
+            <IconSymbol name="bolt.fill" size={12} color="#fff" />
+            <ThemedText style={styles.balanceChipText}>Live</ThemedText>
+          </View>
+        </View>
         <View style={styles.balanceRow}>
-          <IconSymbol name="dollarsign.circle.fill" size={32} color="#f59e0b" />
           {user ? (
             <ThemedText style={styles.balanceAmount}>
               {user.creditBalance.toLocaleString()}
@@ -145,6 +155,7 @@ export default function WalletScreen() {
           ) : (
             <SkeletonText size="title" width={120} />
           )}
+          <ThemedText style={styles.balanceUnit}>credits</ThemedText>
           {pending.checkout ? (
             <PendingIndicator size={16} style={{ marginLeft: 8 }} />
           ) : null}
@@ -155,21 +166,26 @@ export default function WalletScreen() {
           </ThemedText>
         ) : null}
         <Pressable
-          style={styles.rechargeButton}
+          style={({ pressed }) => [styles.rechargeButton, pressed && { opacity: 0.92 }]}
           onPress={() => router.push('/recharge')}>
-          <IconSymbol name="plus.circle.fill" size={18} color="#fff" />
+          <IconSymbol name="plus.circle.fill" size={20} color={Brand.primary} />
           <ThemedText style={styles.rechargeText}>Recharge Credits</ThemedText>
         </Pressable>
       </View>
 
       {ownedCampaigns.length > 0 && (
         earnings && connectStatus ? (
-          <View style={styles.payoutCard}>
+          <View style={[styles.payoutCard, { backgroundColor: surface, borderColor: border }]}>
             <View style={styles.payoutHeader}>
-              <ThemedText style={styles.payoutLabel}>Creator Earnings</ThemedText>
-              <ThemedText style={styles.payoutAmount}>
-                {earnings.available.toLocaleString()} credits
-              </ThemedText>
+              <View>
+                <ThemedText style={styles.payoutLabel}>Creator Earnings</ThemedText>
+                <ThemedText style={styles.payoutAmount}>
+                  {earnings.available.toLocaleString()} <ThemedText style={styles.payoutUnit}>credits</ThemedText>
+                </ThemedText>
+              </View>
+              <View style={[styles.payoutBadge, { backgroundColor: Brand.secondarySoft }]}>
+                <IconSymbol name="dollarsign.circle.fill" size={20} color={Brand.secondary} />
+              </View>
             </View>
             <ThemedText style={styles.payoutRate}>
               Conversion rate: 100 credits = $1.00
@@ -235,35 +251,52 @@ export default function WalletScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
-  heading: { paddingHorizontal: 16, marginBottom: 16 },
+  heading: { paddingHorizontal: 16, marginBottom: 18 },
   balanceCard: {
     marginHorizontal: 16,
-    backgroundColor: 'rgba(245,158,11,0.08)',
-    padding: 20,
-    borderRadius: 16,
+    backgroundColor: Brand.primary,
+    padding: 22,
+    borderRadius: Radius.lg,
     marginBottom: 16,
-    gap: 12,
+    gap: 14,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.4,
+    shadowRadius: 26,
+    elevation: 10,
   },
-  balanceLabel: { fontSize: 14, opacity: 0.6 },
-  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  balanceAmount: { fontSize: 36, fontWeight: 'bold' },
-  checkoutHint: { fontSize: 12, opacity: 0.6 },
+  balanceTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  balanceLabel: { fontFamily: Fonts.sansMedium, color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '500' },
+  balanceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  balanceChipText: { fontFamily: Fonts.sansMedium, color: '#fff', fontSize: 11, fontWeight: '600', letterSpacing: 0.4 },
+  balanceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  balanceAmount: { fontFamily: Fonts.displayBold, fontSize: 44, fontWeight: '700', color: '#fff', letterSpacing: -1 },
+  balanceUnit: { fontFamily: Fonts.sansMedium, fontSize: 14, color: 'rgba(255,255,255,0.7)' },
+  checkoutHint: { fontFamily: Fonts.sans, fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   rechargeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#22c55e',
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    borderRadius: Radius.md,
   },
-  rechargeText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  rechargeText: { fontFamily: Fonts.displayBold, color: Brand.primary, fontWeight: '700', fontSize: 15, letterSpacing: 0.2 },
   payoutCard: {
     marginHorizontal: 16,
-    backgroundColor: 'rgba(10,126,164,0.08)',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    padding: 18,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginBottom: 24,
     gap: 8,
   },
   payoutHeader: {
@@ -271,41 +304,48 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  payoutLabel: { fontSize: 14, opacity: 0.6 },
-  payoutAmount: { fontSize: 18, fontWeight: 'bold' },
-  payoutRate: { fontSize: 12, opacity: 0.4 },
+  payoutBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  payoutLabel: { fontFamily: Fonts.sansMedium, fontSize: 13, opacity: 0.6 },
+  payoutAmount: { fontFamily: Fonts.displayBold, fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  payoutUnit: { fontFamily: Fonts.sans, fontSize: 13, fontWeight: '400', opacity: 0.6 },
+  payoutRate: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.5 },
   payoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#0a7ea4',
-    padding: 12,
-    borderRadius: 10,
-    marginTop: 4,
+    backgroundColor: Brand.secondary,
+    paddingVertical: 14,
+    borderRadius: Radius.md,
+    marginTop: 6,
   },
-  payoutButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  error: { color: '#ef4444', fontSize: 12 },
+  payoutButtonText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 15, letterSpacing: 0.2 },
+  error: { color: Brand.error, fontSize: 12 },
   sectionTitle: { paddingHorizontal: 16, marginBottom: 8 },
   list: { paddingBottom: 40, paddingHorizontal: 16 },
   txRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(128,128,128,0.15)',
   },
   txIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
   },
   txInfo: { flex: 1 },
-  txLabel: { fontSize: 14, fontWeight: '500' },
-  txDate: { fontSize: 12, opacity: 0.4 },
-  txAmount: { fontSize: 16, fontWeight: '700' },
+  txLabel: { fontFamily: Fonts.sansMedium, fontSize: 14, fontWeight: '600' },
+  txDate: { fontFamily: Fonts.sans, fontSize: 12, opacity: 0.5 },
+  txAmount: { fontFamily: Fonts.displayBold, fontSize: 16, fontWeight: '700' },
   empty: { textAlign: 'center', marginTop: 40, opacity: 0.5 },
 });

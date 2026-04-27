@@ -4,13 +4,27 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
+import {
+  useFonts as useSpaceGrotesk,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
+import {
+  useFonts as useDMSans,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppProvider, useApp } from '@/context/app-context';
+import { SettingsProvider } from '@/context/settings-context';
 import { ToastProvider } from '@/components/toast/toast-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Colors, Fonts } from '@/constants/theme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -41,7 +55,10 @@ function RootNavigator() {
 
   return (
     <>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerTitleStyle: { fontFamily: Fonts.displayBold },
+        }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -70,7 +87,7 @@ function AuthSplash() {
       <ThemedText type="title" style={splashStyles.appName}>
         QuickStarter
       </ThemedText>
-      <ActivityIndicator style={splashStyles.spinner} />
+      <ActivityIndicator style={splashStyles.spinner} color={Brand.primary} />
     </ThemedView>
   );
 }
@@ -88,11 +105,16 @@ const splashStyles = StyleSheet.create({
   logoCircle: {
     width: 96,
     height: 96,
-    borderRadius: 48,
-    backgroundColor: '#0a7ea4',
+    borderRadius: 28,
+    backgroundColor: Brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 8,
   },
   appName: {
     textAlign: 'center',
@@ -105,13 +127,43 @@ const splashStyles = StyleSheet.create({
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [grotesk] = useSpaceGrotesk({
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+  });
+  const [dmSans] = useDMSans({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_700Bold,
+  });
+
+  const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+  const palette = Colors[colorScheme ?? 'light'];
+  const themedNavTheme = {
+    ...navTheme,
+    colors: {
+      ...navTheme.colors,
+      primary: Brand.primary,
+      background: palette.background,
+      card: palette.surface,
+      text: palette.text,
+      border: palette.border,
+    },
+  };
+
+  if (!grotesk || !dmSans) {
+    return null;
+  }
 
   return (
     <ToastProvider>
       <AppProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootNavigator />
-        </ThemeProvider>
+        <SettingsProvider>
+          <ThemeProvider value={themedNavTheme}>
+            <RootNavigator />
+          </ThemeProvider>
+        </SettingsProvider>
       </AppProvider>
     </ToastProvider>
   );

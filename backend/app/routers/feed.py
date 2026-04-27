@@ -12,23 +12,35 @@ router = APIRouter()
 async def get_feed(user: CurrentUser, limit: int = 10, offset: int = 0):
     client = user.client
 
-    # Get videos the user has disliked so we can exclude them
-    disliked_resp = client.table("video_interactions").select("video_id").eq("user_id", user.id).eq("interaction_type", "dislike").execute()
-    disliked_ids = [d["video_id"] for d in disliked_resp.data]
-
-    # Fetch all videos with their project info
-    # Use the anon client for public data (project_videos and projects are publicly readable)
+    # Fetch videos with their project info, then dedupe to one per project so
+    # the feed surfaces each campaign exactly once. The "already seen" filter
+    # (excluding disliked videos) is disabled for now so the infinite-loop feed
+    # always cycles the full set.
     anon = get_supabase_client()
     query = anon.table("project_videos").select("*, projects(*, profiles(name))")
 
-    if disliked_ids:
-        # Exclude disliked videos
-        query = query.not_.in_("id", disliked_ids)
-
-    videos_resp = query.limit(limit).offset(offset).execute()
+    # Pull a wider page than `limit` so dedupe-by-project still yields enough rows.
+    videos_resp = query.limit(max(limit * 5, 100)).execute()
 
     if not videos_resp.data:
         return []
+
+    seen_projects: set[str] = set()
+    unique_videos = []
+    for v in videos_resp.data:
+        proj = v.get("projects")
+        if not proj:
+            continue
+        if proj["id"] in seen_projects:
+            continue
+        seen_projects.add(proj["id"])
+        unique_videos.append(v)
+
+    # Apply limit/offset on the deduped list.
+    unique_videos = unique_videos[offset : offset + limit]
+    if not unique_videos:
+        return []
+    videos_resp.data = unique_videos
 
     # Get project stats
     project_ids = list({v["projects"]["id"] for v in videos_resp.data if v.get("projects")})
@@ -57,6 +69,18 @@ async def get_feed(user: CurrentUser, limit: int = 10, offset: int = 0):
         for c in comments_resp.data:
             comment_counts[c["video_id"]] = comment_counts.get(c["video_id"], 0) + 1
 
+    # Tally like/dislike totals across all users for these videos.
+    like_counts: dict[str, int] = {}
+    dislike_counts: dict[str, int] = {}
+    if video_ids:
+        all_interactions_resp = anon.table("video_interactions").select("video_id, interaction_type").in_("video_id", video_ids).execute()
+        for row in all_interactions_resp.data:
+            vid = row["video_id"]
+            if row["interaction_type"] == "like":
+                like_counts[vid] = like_counts.get(vid, 0) + 1
+            elif row["interaction_type"] == "dislike":
+                dislike_counts[vid] = dislike_counts.get(vid, 0) + 1
+
     # Build feed items (random order is achieved by Postgres default + no ORDER BY)
     items = []
     for v in videos_resp.data:
@@ -80,6 +104,8 @@ async def get_feed(user: CurrentUser, limit: int = 10, offset: int = 0):
             ),
             interaction=FeedInteraction(**inter),
             commentCount=comment_counts.get(v["id"], 0),
+            likeCount=like_counts.get(v["id"], 0),
+            dislikeCount=dislike_counts.get(v["id"], 0),
         ))
 
     return items

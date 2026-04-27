@@ -6,6 +6,7 @@ import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
 export default function LoginScreen() {
@@ -159,30 +160,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   forgotLink: {
-    color: '#0a7ea4',
+    fontFamily: Fonts.sansMedium,
+    color: Brand.primary,
     fontSize: 14,
     fontWeight: '600',
     alignSelf: 'flex-end',
   },
   error: {
-    color: '#ef4444',
+    color: Brand.error,
     fontSize: 14,
     textAlign: 'center',
   },
   submitButton: {
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Brand.primary,
+    paddingVertical: 18,
+    borderRadius: Radius.md,
     alignItems: 'center',
     marginTop: 4,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
   submitDisabled: {
     opacity: 0.6,
   },
   submitText: {
+    fontFamily: Fonts.displayBold,
     color: '#fff',
     fontWeight: '700',
     fontSize: 17,
+    letterSpacing: 0.2,
   },
   footer: {
     flexDirection: 'row',
@@ -190,11 +199,12 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   footerText: {
-    opacity: 0.5,
+    opacity: 0.6,
     fontSize: 15,
   },
   footerLink: {
-    color: '#0a7ea4',
+    fontFamily: Fonts.sansMedium,
+    color: Brand.primary,
     fontWeight: '600',
     fontSize: 15,
   },

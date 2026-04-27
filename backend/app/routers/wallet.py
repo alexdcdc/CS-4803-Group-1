@@ -4,11 +4,13 @@ from pydantic import BaseModel
 from app.dependencies import CurrentUser
 from app.models.project import RewardOut
 from app.services.stripe_service import (
-    CREDIT_PACKAGES,
+    MAX_CREDIT_PURCHASE,
+    MIN_CREDIT_PURCHASE,
     create_checkout_session,
     create_onboarding_link,
     create_recipient_account,
     create_transfer,
+    credits_to_cents,
     recipient_status,
     retrieve_account,
 )
@@ -107,8 +109,11 @@ async def donate(req: DonateRequest, user: CurrentUser):
 
 @router.post("/checkout-session", response_model=CheckoutSessionResponse)
 async def create_credit_checkout_session(req: RechargeRequest, user: CurrentUser):
-    if req.credits not in CREDIT_PACKAGES:
-        raise HTTPException(status_code=400, detail="Unsupported credit package")
+    if req.credits < MIN_CREDIT_PURCHASE or req.credits > MAX_CREDIT_PURCHASE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Credit amount must be between {MIN_CREDIT_PURCHASE} and {MAX_CREDIT_PURCHASE}",
+        )
 
     admin = get_supabase_admin()
     profile = admin.table("profiles").select("email").eq("id", user.id).single().execute()
@@ -118,7 +123,7 @@ async def create_credit_checkout_session(req: RechargeRequest, user: CurrentUser
         "user_id": user.id,
         "stripe_session_id": session.id,
         "credits": req.credits,
-        "amount_cents": CREDIT_PACKAGES[req.credits],
+        "amount_cents": credits_to_cents(req.credits),
         "status": "created",
     }).execute()
 

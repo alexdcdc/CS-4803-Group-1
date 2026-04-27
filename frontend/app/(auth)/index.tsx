@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Brand, Fonts, Radius } from '@/constants/theme';
 
 export default function AuthEntryScreen() {
   const router = useRouter();
@@ -12,7 +13,9 @@ export default function AuthEntryScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.hero}>
         <View style={styles.logoCircle}>
-          <IconSymbol name="play.fill" size={48} color="#fff" />
+          <View style={styles.logoInner}>
+            <IconSymbol name="play.fill" size={44} color="#fff" />
+          </View>
         </View>
         <ThemedText type="title" style={styles.appName}>
           QuickStarter
@@ -47,49 +50,74 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 56,
   },
   logoCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#0a7ea4',
+    width: 104,
+    height: 104,
+    borderRadius: 32,
+    backgroundColor: Brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.45,
+    shadowRadius: 28,
+    elevation: 12,
+  },
+  logoInner: {
+    width: 88,
+    height: 88,
+    borderRadius: 26,
+    backgroundColor: Brand.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [{ rotate: '-8deg' }],
   },
   appName: {
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   tagline: {
+    fontFamily: Fonts.sans,
     textAlign: 'center',
-    opacity: 0.5,
+    opacity: 0.6,
     fontSize: 16,
   },
   buttons: {
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: '#0a7ea4',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: Brand.primary,
+    paddingVertical: 18,
+    borderRadius: Radius.md,
     alignItems: 'center',
+    shadowColor: Brand.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 6,
   },
   primaryText: {
+    fontFamily: Fonts.displayBold,
     color: '#fff',
     fontWeight: '700',
     fontSize: 17,
+    letterSpacing: 0.2,
   },
   secondaryButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(128,128,128,0.3)',
-    padding: 16,
-    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Brand.primary,
+    paddingVertical: 18,
+    borderRadius: Radius.md,
     alignItems: 'center',
   },
   secondaryText: {
-    fontWeight: '600',
+    fontFamily: Fonts.displayBold,
+    color: Brand.primary,
+    fontWeight: '700',
     fontSize: 17,
+    letterSpacing: 0.2,
   },
 });

@@ -285,6 +285,8 @@ export interface FeedItem {
     disliked: boolean;
   };
   commentCount: number;
+  likeCount: number;
+  dislikeCount: number;
 }
 
 export async function getFeed(limit = 10, offset = 0): Promise<FeedItem[]> {
