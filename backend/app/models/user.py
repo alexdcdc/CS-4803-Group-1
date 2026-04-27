@@ -43,3 +43,7 @@ class UpdateAccountRequest(BaseModel):
     email: str | None = None
     currentPassword: str | None = None
     newPassword: str | None = None
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str

@@ -111,8 +111,11 @@ export async function updateAccount(data: {
   });
 }
 
-export async function deleteAccount(): Promise<void> {
-  await apiFetch('/auth/account', { method: 'DELETE' });
+export async function deleteAccount(password: string): Promise<void> {
+  await apiFetch('/auth/account', {
+    method: 'DELETE',
+    body: JSON.stringify({ password }),
+  });
   await supabase.auth.signOut();
 }
 

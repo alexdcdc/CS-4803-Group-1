@@ -93,7 +93,7 @@ interface AppActions {
     currentPassword?: string;
     newPassword?: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  deleteAccount: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 const AppContext = createContext<(AppState & AppActions) | null>(null);
@@ -598,8 +598,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [refreshSilently],
   );
 
-  const deleteAccountFn: AppActions['deleteAccount'] = useCallback(async () => {
-    await api.deleteAccount();
+  const deleteAccountFn: AppActions['deleteAccount'] = useCallback(async (password) => {
+    await api.deleteAccount(password);
     setUser(null);
     setProjects([]);
     setPending(EMPTY_PENDING);

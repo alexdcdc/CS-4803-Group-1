@@ -40,9 +40,14 @@ function RootNavigator() {
   const inOnboarding = currentGroup === 'onboarding';
   // /auth/callback handles its own routing after exchanging the recovery / verification code.
   const inAuthCallback = currentGroup === 'auth';
+  // /reset-password runs immediately after a recovery code exchange and may
+  // briefly observe user=null while the /users/me fetch is in flight. The
+  // Supabase session is already valid here, so the screen can stay even when
+  // the profile hasn't hydrated yet.
+  const inResetPassword = currentGroup === 'reset-password';
 
   let redirectTo: '/(auth)' | '/onboarding' | '/(tabs)' | null = null;
-  if (!loading && !inAuthCallback) {
+  if (!loading && !inAuthCallback && !inResetPassword) {
     if (!user && !inAuth) redirectTo = '/(auth)';
     else if (user && !user.hasCompletedOnboarding && !inOnboarding) redirectTo = '/onboarding';
     else if (user && user.hasCompletedOnboarding && (inAuth || inOnboarding))

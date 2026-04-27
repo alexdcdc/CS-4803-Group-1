@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,6 +30,10 @@ export default function AccountScreen() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [autoDonateInput, setAutoDonateInput] = useState(String(autoDonateAmount));
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const commitAutoDonateAmount = () => {
     const parsed = parseInt(autoDonateInput, 10);
@@ -76,21 +79,36 @@ export default function AccountScreen() {
     await logout();
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Account',
-      'This action cannot be undone. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteAccount();
-          },
-        },
-      ],
-    );
+  const handleDeletePress = () => {
+    setDeleteError('');
+    setDeletePassword('');
+    setConfirmingDelete(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setConfirmingDelete(false);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleteError('');
+    if (!deletePassword) {
+      setDeleteError('Enter your password to confirm');
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteAccount(deletePassword);
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error && /401|incorrect/i.test(err.message)
+          ? 'Incorrect password'
+          : 'Could not delete account',
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -248,10 +266,50 @@ export default function AccountScreen() {
             <ThemedText style={styles.logoutText}>Log Out</ThemedText>
           </Pressable>
 
-          <Pressable style={styles.deleteButton} onPress={handleDelete}>
-            <IconSymbol name="trash.fill" size={20} color={Brand.error} />
-            <ThemedText style={styles.deleteText}>Delete Account</ThemedText>
-          </Pressable>
+          {confirmingDelete ? (
+            <View style={styles.deleteConfirmBox}>
+              <ThemedText style={styles.deleteConfirmTitle}>Confirm account deletion</ThemedText>
+              <ThemedText style={styles.deleteConfirmDesc}>
+                Enter your password to permanently delete your account. This cannot be undone.
+              </ThemedText>
+              <View style={styles.inputRow}>
+                <IconSymbol name="lock.fill" size={18} color="rgba(128,128,128,0.6)" />
+                <TextInput
+                  style={[styles.input, { color: textColor }]}
+                  value={deletePassword}
+                  onChangeText={setDeletePassword}
+                  secureTextEntry
+                  placeholder="Current password"
+                  placeholderTextColor="rgba(128,128,128,0.5)"
+                  autoFocus
+                />
+              </View>
+              {deleteError ? <ThemedText style={styles.error}>{deleteError}</ThemedText> : null}
+              <View style={styles.deleteActionsRow}>
+                <Pressable
+                  style={[styles.deleteCancelButton, deleting && styles.buttonDisabled]}
+                  onPress={handleDeleteCancel}
+                  disabled={deleting}>
+                  <ThemedText style={styles.deleteCancelText}>Cancel</ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.deleteConfirmButton, deleting && styles.buttonDisabled]}
+                  onPress={handleDeleteConfirm}
+                  disabled={deleting}>
+                  {deleting ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <ThemedText style={styles.deleteConfirmText}>Delete Forever</ThemedText>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable style={styles.deleteButton} onPress={handleDeletePress}>
+              <IconSymbol name="trash.fill" size={20} color={Brand.error} />
+              <ThemedText style={styles.deleteText}>Delete Account</ThemedText>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
     </ThemedView>
@@ -427,5 +485,54 @@ const styles = StyleSheet.create({
     color: Brand.error,
     fontWeight: '600',
     fontSize: 16,
+  },
+  deleteConfirmBox: {
+    gap: 12,
+    padding: 16,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Brand.error,
+    backgroundColor: 'rgba(239,68,68,0.06)',
+  },
+  deleteConfirmTitle: {
+    fontFamily: Fonts.displayBold,
+    fontSize: 16,
+    fontWeight: '700',
+    color: Brand.error,
+  },
+  deleteConfirmDesc: {
+    fontSize: 13,
+    opacity: 0.7,
+    lineHeight: 18,
+  },
+  deleteActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  deleteCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(128,128,128,0.4)',
+    alignItems: 'center',
+  },
+  deleteCancelText: {
+    fontFamily: Fonts.sansMedium,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    backgroundColor: Brand.error,
+    alignItems: 'center',
+  },
+  deleteConfirmText: {
+    fontFamily: Fonts.displayBold,
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });
