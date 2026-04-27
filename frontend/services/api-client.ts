@@ -94,7 +94,8 @@ export async function logout(): Promise<void> {
 export async function forgotPassword(
   email: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirectUrl });
+  const redirectTo = `${authRedirectUrl}${authRedirectUrl.includes('?') ? '&' : '?'}type=recovery`;
+  await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   return { success: true };
 }
 
