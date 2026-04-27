@@ -1,7 +1,7 @@
-import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 
 import { useApp } from '@/context/app-context';
 import { ThemedText } from '@/components/themed-text';
@@ -12,7 +12,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { RewardSkeleton, Skeleton, SkeletonText, VideoTileSkeleton } from '@/components/skeleton';
 import { Brand, Fonts, Radius } from '@/constants/theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { Project, ProjectVideo } from '@/data/types';
+import { Project } from '@/data/types';
 import * as api from '@/services/api-client';
 
 export default function ProjectDetailScreen() {
@@ -20,11 +20,10 @@ export default function ProjectDetailScreen() {
   const router = useRouter();
   const { projects } = useApp();
   const textColor = useThemeColor({}, 'text');
+  const isFocused = useIsFocused();
 
   const fromContext = id ? projects.find((p) => p.id === id) : undefined;
   const [project, setProject] = useState<Project | null>(fromContext ?? null);
-  const [playingVideo, setPlayingVideo] = useState<ProjectVideo | null>(null);
-  const insets = useSafeAreaInsets();
 
   // Stay in sync with context (e.g. after a donation reconciles).
   useEffect(() => {
@@ -44,6 +43,15 @@ export default function ProjectDetailScreen() {
     };
   }, [id]);
 
+  const openFeedAtIndex = (index: number) => {
+    if (!project) return;
+    if (!project.videos[index]) return;
+    router.push({
+      pathname: '/project-feed',
+      params: { projectId: project.id, videoIndex: String(index) },
+    });
+  };
+
   if (!project) {
     return <ProjectDetailSkeleton textColor={textColor} />;
   }
@@ -52,10 +60,9 @@ export default function ProjectDetailScreen() {
   const moreVideos = project.videos.slice(1);
 
   return (
-    <>
     <ScrollView style={{ flex: 1 }}>
       <ThemedView style={styles.container}>
-        <Pressable onPress={() => project.videos[0] && setPlayingVideo(project.videos[0])}>
+        <Pressable onPress={() => project.videos[0] && openFeedAtIndex(0)}>
           <MockVideoPlayer
             color={project.videos[0]?.placeholderColor ?? '#333'}
             height={240}
@@ -63,6 +70,7 @@ export default function ProjectDetailScreen() {
             thumbnailUrl={project.videos[0]?.thumbnailUrl}
             status={project.videos[0]?.status}
             controls={false}
+            active={isFocused}
           />
         </Pressable>
 
@@ -110,11 +118,11 @@ export default function ProjectDetailScreen() {
           {moreVideos.length > 0 && (
             <View style={styles.videosSection}>
               <ThemedText type="subtitle">More Videos</ThemedText>
-              {moreVideos.map((video) => (
+              {moreVideos.map((video, idx) => (
                 <Pressable
                   key={video.id}
                   style={styles.videoRow}
-                  onPress={() => setPlayingVideo(video)}>
+                  onPress={() => openFeedAtIndex(idx + 1)}>
                   {video.thumbnailUrl ? (
                     <Image source={{ uri: video.thumbnailUrl }} style={styles.videoThumb} />
                   ) : (
@@ -137,32 +145,6 @@ export default function ProjectDetailScreen() {
         </View>
       </ThemedView>
     </ScrollView>
-    <Modal
-      visible={playingVideo !== null}
-      animationType="fade"
-      transparent={false}
-      onRequestClose={() => setPlayingVideo(null)}>
-      <View style={styles.fullScreenContainer}>
-        {playingVideo && (
-          <MockVideoPlayer
-            color={playingVideo.placeholderColor}
-            videoUrl={playingVideo.videoUrl}
-            thumbnailUrl={playingVideo.thumbnailUrl}
-            status={playingVideo.status}
-            fullScreen
-            controls={false}
-            loop
-          />
-        )}
-        <Pressable
-          style={[styles.closeButton, { top: insets.top + 12 }]}
-          onPress={() => setPlayingVideo(null)}
-          hitSlop={12}>
-          <IconSymbol name="xmark" size={24} color="#fff" />
-        </Pressable>
-      </View>
-    </Modal>
-    </>
   );
 }
 
@@ -251,15 +233,4 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   donateText: { fontFamily: Fonts.displayBold, color: '#fff', fontWeight: '700', fontSize: 17, letterSpacing: 0.2 },
-  fullScreenContainer: { flex: 1, backgroundColor: '#000' },
-  closeButton: {
-    position: 'absolute',
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 });

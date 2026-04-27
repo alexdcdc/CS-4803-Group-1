@@ -70,6 +70,10 @@ function RootNavigator() {
         <Stack.Screen name="upload-content" options={{ presentation: 'modal', title: 'Upload Content' }} />
         <Stack.Screen name="add-reward" options={{ presentation: 'modal', title: 'Add Reward' }} />
         <Stack.Screen name="project/[id]" options={{ title: 'Project' }} />
+        <Stack.Screen
+          name="project-feed"
+          options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }}
+        />
         <Stack.Screen name="campaign/[id]" options={{ title: 'Campaign' }} />
       </Stack>
       {settling ? <AuthSplash /> : null}
