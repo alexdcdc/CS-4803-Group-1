@@ -38,9 +38,11 @@ function RootNavigator() {
   const currentGroup = segments[0];
   const inAuth = currentGroup === '(auth)';
   const inOnboarding = currentGroup === 'onboarding';
+  // /auth/callback handles its own routing after exchanging the recovery / verification code.
+  const inAuthCallback = currentGroup === 'auth';
 
   let redirectTo: '/(auth)' | '/onboarding' | '/(tabs)' | null = null;
-  if (!loading) {
+  if (!loading && !inAuthCallback) {
     if (!user && !inAuth) redirectTo = '/(auth)';
     else if (user && !user.hasCompletedOnboarding && !inOnboarding) redirectTo = '/onboarding';
     else if (user && user.hasCompletedOnboarding && (inAuth || inOnboarding))
@@ -60,6 +62,8 @@ function RootNavigator() {
           headerTitleStyle: { fontFamily: Fonts.displayBold },
         }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="account" options={{ title: 'Account', presentation: 'modal' }} />

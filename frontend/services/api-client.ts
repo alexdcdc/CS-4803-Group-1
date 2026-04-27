@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import { Comment, ConnectStatus, CreatorEarnings, Project, ProjectVideo, Reward, User, UserRole } from '@/data/types';
 import { API_BASE_URL, SUPABASE_ANON_KEY, SUPABASE_URL } from '@/services/config';
+
+// Resolves to https://<host>/auth/callback on web and quickstarter:///auth/callback on native.
+// Add both forms to Supabase's allowed redirect URLs.
+const authRedirectUrl = Linking.createURL('/auth/callback');
 
 // ─── Supabase Client (auth only) ──────────────────────────────
 
@@ -64,7 +69,7 @@ export async function signup(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name } },
+    options: { data: { name }, emailRedirectTo: authRedirectUrl },
   });
   if (error) return { success: false, error: error.message };
   return { success: true, needsEmailVerification: !data.session };
@@ -73,7 +78,11 @@ export async function signup(
 export async function resendSignupEmail(
   email: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: authRedirectUrl },
+  });
   if (error) return { success: false, error: error.message };
   return { success: true };
 }
@@ -85,7 +94,7 @@ export async function logout(): Promise<void> {
 export async function forgotPassword(
   email: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await supabase.auth.resetPasswordForEmail(email);
+  await supabase.auth.resetPasswordForEmail(email, { redirectTo: authRedirectUrl });
   return { success: true };
 }
 

@@ -1,0 +1,62 @@
+import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+
+import { supabase } from '@/services/api-client';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Brand } from '@/constants/theme';
+
+export default function AuthCallbackScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    code?: string;
+    type?: string;
+    error_description?: string;
+  }>();
+
+  useEffect(() => {
+    (async () => {
+      if (params.error_description) {
+        router.replace({
+          pathname: '/(auth)/login',
+          params: { error: String(params.error_description) },
+        });
+        return;
+      }
+      if (params.code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(String(params.code));
+        if (error) {
+          router.replace({ pathname: '/(auth)/login', params: { error: error.message } });
+          return;
+        }
+      }
+      if (params.type === 'recovery') {
+        router.replace('/reset-password');
+      } else {
+        router.replace('/(tabs)');
+      }
+    })();
+  }, [params.code, params.type, params.error_description, router]);
+
+  return (
+    <ThemedView style={styles.container}>
+      <ActivityIndicator size="large" color={Brand.primary} />
+      <ThemedText style={styles.text}>Signing you in…</ThemedText>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  text: {
+    opacity: 0.6,
+    fontSize: 15,
+  },
+});

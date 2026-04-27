@@ -1,8 +1,8 @@
-name: Deploy landing page to GitHub Pages
+name: Deploy landing page to quickstarter.xyz
 
 on:
   push:
-    branches: ["main"] # change if your default branch is different
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -22,13 +22,16 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Write CNAME for custom domain
+        run: echo "quickstarter.xyz" > landing-page/CNAME
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload artifact (landing-page folder)
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./landing-page # <-- your folder
+          path: ./landing-page
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
